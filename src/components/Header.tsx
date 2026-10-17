@@ -1,12 +1,6 @@
 import Link from "next/link";
+import { modelLabel } from "@/lib/edgeModel";
 import NavLinks from "./NavLinks";
-
-/** "gemma4:e4b" → "Gemma 4 E4B · local" */
-export function modelLabel(model = process.env.OLLAMA_MODEL ?? "gemma4:e4b") {
-  const m = model.match(/^gemma(\d+)(?::([^-]+))?/i);
-  if (!m) return `${model} · local`;
-  return `Gemma ${m[1]}${m[2] ? " " + m[2].toUpperCase() : ""} · local`;
-}
 
 export default function Header() {
   return (
@@ -22,7 +16,7 @@ export default function Header() {
           <span>Vouch Explorer</span>
         </Link>
         <NavLinks />
-        <span className="model-badge" title="Open-weight model, runs locally">{modelLabel()}</span>
+        <span className="model-badge" title="Open-weight model, runs in your browser">{modelLabel()} · edge</span>
       </div>
     </header>
   );

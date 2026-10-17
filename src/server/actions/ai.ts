@@ -1,35 +1,17 @@
 "use server";
-import { SERVER_MODEL } from "../ai/ollamaRunner";
 import {
   cachedResult,
   complete,
-  contributionBrief,
-  discoverMatches,
   prepareBrief,
   prepareDiscover,
   prepareTriage,
-  requestTriage,
   toSpec,
   type AiResult,
   type Prepared,
   type PromptSpec,
 } from "../ai/tasks";
 
-// --- Server-side model (Ollama today) ---
-
-export async function getBrief(login: string, force = false) {
-  return contributionBrief(login, force);
-}
-
-export async function getTriage(id: number, force = false) {
-  return requestTriage(id, force);
-}
-
-export async function getMatches(skills: string, hours: string, force = false) {
-  return discoverMatches(skills, hours, force);
-}
-
-// --- Browser-side model: prepareAi → run model in the browser → submitAi ---
+// The model runs in the browser (src/client/edgeAi.ts): prepareAi → edge model in a worker → submitAi.
 
 export type AiTask =
   | { kind: "brief"; login: string }
@@ -66,6 +48,3 @@ export async function submitAi(task: AiTask, model: string, raw: string): Promis
   return complete(p, raw, model);
 }
 
-export async function serverModel() {
-  return SERVER_MODEL;
-}

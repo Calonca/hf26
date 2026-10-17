@@ -2,10 +2,18 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getTriage } from "@/server/actions/ai";
+import { runEdge } from "@/client/edgeAi";
+import type { Brief, Triage } from "@/server/ai/tasks";
 import { decideRequest } from "@/server/actions/pages";
 import type { VouchRequest, Decision } from "@/db/repo";
+import { EdgeStatusLine } from "./EdgeStatusLine";
 import { SampleChip } from "./SampleChip";
+
+// Triage reads the requester's cached brief, so generate that first.
+async function getTriage(request: VouchRequest, force: boolean) {
+  await runEdge<Brief>({ kind: "brief", login: request.requester_login });
+  return runEdge<Triage>({ kind: "triage", requestId: request.id }, force);
+}
 
 const STATUS_LABEL: Record<string, string> = {
   open: "Open",
@@ -101,8 +109,8 @@ function RequestDetail({
 }) {
   const qc = useQueryClient();
   const key = ["triage", request.id];
-  const triage = useQuery({ queryKey: key, queryFn: () => getTriage(request.id, false), staleTime: Infinity });
-  const regen = useMutation({ mutationFn: () => getTriage(request.id, true), onSuccess: (r) => qc.setQueryData(key, r) });
+  const triage = useQuery({ queryKey: key, queryFn: () => getTriage(request, false), staleTime: Infinity });
+  const regen = useMutation({ mutationFn: () => getTriage(request, true), onSuccess: (r) => qc.setQueryData(key, r) });
   const [reply, setReply] = useState<string>(request.reply_text ?? "");
   const [confirmDenounce, setConfirmDenounce] = useState(false);
   const res = regen.isPending ? undefined : triage.data;
@@ -135,19 +143,20 @@ function RequestDetail({
 
       <div className="req-brief">
         <div className="req-brief-head">
-          <h3>Gemma brief</h3>
-          <span className="req-badge mono">public data · local model</span>
+          <h3>AI brief</h3>
+          <span className="req-badge mono">public data · in-browser model</span>
           <button type="button" className="btn btn-ghost req-recheck" onClick={() => regen.mutate()} disabled={loading}>
             {regen.isPending ? "Re-checking…" : "Re-check"}
           </button>
         </div>
         {loading && (
-          <div className="req-checks" aria-busy="true" aria-label="Gemma is checking the request">
+          <div className="req-checks" aria-busy="true" aria-label="The model is checking the request">
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="req-check">
                 <div className="skeleton" style={{ height: 14, width: "85%" }} />
               </div>
             ))}
+            <EdgeStatusLine>The model is checking the request…</EdgeStatusLine>
           </div>
         )}
         {!loading && res && !res.ok && (

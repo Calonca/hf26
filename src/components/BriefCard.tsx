@@ -1,13 +1,12 @@
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getBrief } from "@/server/actions/ai";
+import { runEdge } from "@/client/edgeAi";
+import { modelLabel } from "@/lib/edgeModel";
+import type { Brief } from "@/server/ai/tasks";
+import { EdgeStatusLine } from "./EdgeStatusLine";
 import { EvidenceList } from "./EvidenceList";
 
-/** "gemma4:e4b" → "Gemma 4" */
-function modelName(model: string) {
-  const m = model.match(/^gemma(\d+)/i);
-  return m ? `Gemma ${m[1]}` : model;
-}
+const getBrief = (login: string, force: boolean) => runEdge<Brief>({ kind: "brief", login }, force);
 
 export function BriefCard({ login }: { login: string }) {
   const qc = useQueryClient();
@@ -26,7 +25,7 @@ export function BriefCard({ login }: { login: string }) {
         <h2 id="brief-title">Contribution brief</h2>
         <div className="brief-actions">
           <span className="brief-badge mono">
-            written by {res && res.ok ? modelName(res.model) : "Gemma 4"} · runs locally
+            written by {modelLabel(res && res.ok ? res.model : undefined)} · runs in your browser
           </span>
           <button type="button" className="btn btn-ghost" onClick={() => regen.mutate()} disabled={loading}>
             {regen.isPending ? "Regenerating…" : "Regenerate"}
@@ -35,11 +34,11 @@ export function BriefCard({ login }: { login: string }) {
       </div>
 
       {loading && (
-        <div role="status" aria-label="Gemma is writing the brief">
+        <div role="status" aria-label="The model is writing the brief">
           <div className="skeleton" style={{ height: 16, width: "92%" }} />
           <div className="skeleton" style={{ height: 16, width: "80%", marginTop: 8 }} />
           <div className="skeleton" style={{ height: 16, width: "64%", marginTop: 8 }} />
-          <p className="muted small">Gemma is reading public activity…</p>
+          <EdgeStatusLine>The model is reading public activity…</EdgeStatusLine>
         </div>
       )}
       {!loading && q.error && (

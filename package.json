@@ -11,8 +11,7 @@
     "db:push": "drizzle-kit push",
     "db:seed": "tsx scripts/seed.ts",
     "crawl": "tsx scripts/crawl.ts",
-    "enrich": "tsx scripts/enrich.ts",
-    "prewarm": "tsx scripts/prewarm.ts"
+    "enrich": "tsx scripts/enrich.ts"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.3.1",
