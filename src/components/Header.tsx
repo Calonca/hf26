@@ -1,14 +1,16 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { Badge } from "@/components/arc/badge/badge";
 import { modelLabel } from "@/lib/edgeModel";
 import NavLinks from "./NavLinks";
+import { ThemeToggle } from "./ThemeToggle";
 
 export default function Header() {
   return (
     <header className="site-header">
       <div className="site-header-inner">
         <Link href="/" className="brand">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5EEAD4" strokeWidth="2" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <circle cx="6" cy="6" r="3" />
             <circle cx="18" cy="6" r="3" />
             <circle cx="12" cy="18" r="3" />
@@ -19,7 +21,12 @@ export default function Header() {
         <Suspense fallback={null}>
           <NavLinks />
         </Suspense>
-        <span className="model-badge" title="Open-weight model, runs in your browser">{modelLabel()} · edge</span>
+        <div className="header-tools">
+          <Badge tone="info" className="mono" title="Open-weight model, runs in your browser">
+            {modelLabel()} · edge
+          </Badge>
+          <ThemeToggle />
+        </div>
       </div>
     </header>
   );

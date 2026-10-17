@@ -1,18 +1,12 @@
 import Link from "next/link";
+import { Avatar } from "@/components/arc/avatar/avatar";
+import { Badge } from "@/components/arc/badge/badge";
 import { BriefCard } from "@/components/BriefCard";
 import { SampleChip } from "@/components/SampleChip";
 import { getProfileData } from "@/server/actions/pages";
 import "./profile.css";
 
 export const dynamic = "force-dynamic";
-
-const initials = (login: string) =>
-  login
-    .split(/[-_.]/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]!.toUpperCase())
-    .join("") || login.slice(0, 2).toUpperCase();
 
 export default async function ProfilePage({ params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params;
@@ -27,14 +21,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
   return (
     <main className="container profile-page">
       <aside className="card profile-aside" aria-labelledby="profile-handle">
-        {data.user?.avatar_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={data.user.avatar_url} alt="" width={72} height={72} className="profile-avatar" />
-        ) : (
-          <div className="profile-avatar profile-avatar-fallback" aria-hidden="true">
-            {initials(login)}
-          </div>
-        )}
+        <Avatar name={data.user?.name ?? data.login} src={data.user?.avatar_url ?? undefined} size="xl" />
         <div className="profile-id">
           <h1 id="profile-handle">@{data.login}</h1>
           {data.user?.name && <span className="profile-name">{data.user.name}</span>}
@@ -42,11 +29,11 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
         </div>
 
         <div className="profile-pills">
-          <span className="pill pill-ok">
+          <Badge tone="success">
             Vouched in {vouched.length} project{plural(vouched.length)}
-          </span>
-          {unknownVoucher.length > 0 && <span className="pill pill-muted">Unknown voucher in {unknownVoucher.length}</span>}
-          {denounced.length > 0 && <span className="pill pill-warn">Denounced in {denounced.length}</span>}
+          </Badge>
+          {unknownVoucher.length > 0 && <Badge tone="neutral">Unknown voucher in {unknownVoucher.length}</Badge>}
+          {denounced.length > 0 && <Badge tone="danger">Denounced in {denounced.length}</Badge>}
         </div>
 
         <div className="profile-vouchers">
@@ -88,7 +75,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
           )}
         </div>
 
-        <a href={`https://github.com/${data.login}`} target="_blank" rel="noreferrer" className="profile-gh">
+        <a href={`https://github.com/${data.login}`} target="_blank" rel="noreferrer" className="link-btn">
           View on GitHub →
         </a>
         {anySeed && <SampleChip show />}
@@ -127,9 +114,9 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
                       <td>{r.reviews}</td>
                       <td>
                         {r.vouch === "vouched" ? (
-                          <span className="vouch-ok">Vouched</span>
+                          <Badge tone="success" size="sm">Vouched</Badge>
                         ) : r.vouch === "denounced" ? (
-                          <span className="vouch-warn">Denounced</span>
+                          <Badge tone="danger" size="sm">Denounced</Badge>
                         ) : (
                           <span className="muted">Not listed</span>
                         )}

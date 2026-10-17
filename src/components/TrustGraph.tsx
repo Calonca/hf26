@@ -1,13 +1,40 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/arc/button/button";
 import type { TrustEdge } from "@/db/repo/trustRepo";
 
 type Props = { center: { kind: "user" | "project"; id: string }; edges: TrustEdge[] };
 
-const TEAL = "#0F766E";
-const ORANGE = "#B45309";
-const GREY = "#8A94A3";
+// Cytoscape draws on canvas and cannot read CSS variables (or oklch), so Arc tokens are resolved to rgb.
+const TOKENS = {
+  ok: "--success",
+  bad: "--danger",
+  unknown: "--text-muted",
+  fg: "--foreground",
+  bg: "--background",
+  surface: "--surface",
+  muted: "--surface-muted",
+  secondary: "--text-secondary",
+  border: "--border-strong",
+} as const;
+type Palette = Record<keyof typeof TOKENS, string>;
+
+function readPalette(): Palette {
+  const ctx = document.createElement("canvas").getContext("2d", { willReadFrequently: true })!;
+  const css = getComputedStyle(document.documentElement);
+  const toRgb = (value: string) => {
+    ctx.clearRect(0, 0, 1, 1);
+    ctx.fillStyle = value;
+    ctx.fillRect(0, 0, 1, 1);
+    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+    return `rgb(${r},${g},${b})`;
+  };
+  return Object.fromEntries(Object.entries(TOKENS).map(([k, v]) => [k, toRgb(css.getPropertyValue(v).trim())])) as Palette;
+}
+
+const FONT_MONO = "Geist Mono, ui-monospace, monospace";
+const FONT_BODY = "Inter, system-ui, sans-serif";
 
 /** Size tier from node count: small graphs stay compact, big ones get rings and more room. */
 function tier(n: number) {
@@ -25,6 +52,65 @@ export default function TrustGraph({ center, edges }: Props) {
   const nodeCount = 1 + new Set(edges.map((e) => (center.kind === "user" ? e.project : e.login))).size;
   const t = tier(nodeCount);
   const denouncedCount = edges.filter((e) => e.status === "denounced").length;
+
+  const styleFor = (c: Palette): import("cytoscape").StylesheetJson => [
+    {
+      selector: "node",
+      style: {
+        label: "data(label)",
+        shape: "round-rectangle",
+        width: "label" as never,
+        height: "label" as never,
+        padding: `${t.pad}px` as never,
+        "font-family": FONT_MONO,
+        "font-size": t.font,
+        color: c.fg,
+        "text-valign": "center",
+        "text-halign": "center",
+        "background-color": c.muted,
+        "border-width": 1,
+        "border-color": c.ok,
+      },
+    },
+    { selector: 'node[kind = "user"]', style: { "background-color": c.surface, "border-color": c.border } },
+    {
+      selector: 'node[status = "denounced"]',
+      style: { "background-color": c.surface, color: c.bad, "border-color": c.bad, "border-width": 2, "font-weight": 600, "z-index": 10 },
+    },
+    {
+      selector: "node[isCenter = 1]",
+      style: {
+        shape: "round-rectangle",
+        "corner-radius": 999 as never,
+        padding: "12px" as never,
+        "background-color": c.fg,
+        "border-width": 0,
+        color: c.bg,
+        "font-family": FONT_BODY,
+        "font-weight": 600,
+        "font-size": 14,
+      },
+    },
+    {
+      selector: "edge",
+      style: {
+        width: t.edge,
+        opacity: nodeCount > 40 ? 0.55 : 1,
+        "line-color": (e: import("cytoscape").EdgeSingular) =>
+          e.data("status") === "denounced" ? c.bad : e.data("hasVoucher") ? c.ok : c.unknown,
+        "line-style": "data(style)" as never,
+        "curve-style": "straight",
+        label: "data(label)",
+        "font-size": 11,
+        "font-family": FONT_BODY,
+        color: c.secondary,
+        "text-background-color": c.surface,
+        "text-background-opacity": 1,
+        "text-background-padding": "3px",
+      },
+    },
+    { selector: 'edge[status = "denounced"]', style: { opacity: 1, width: Math.max(2, t.edge), "z-index": 10 } },
+  ];
 
   const fit = () => {
     const cy = cyRef.current;
@@ -54,6 +140,7 @@ export default function TrustGraph({ center, edges }: Props) {
 
   useEffect(() => {
     let cy: import("cytoscape").Core | undefined;
+    let themeObserver: MutationObserver | undefined;
     let cancelled = false;
     (async () => {
       const cytoscape = (await import("cytoscape")).default;
@@ -72,11 +159,10 @@ export default function TrustGraph({ center, edges }: Props) {
             source,
             target,
             label: edges.length > 30 ? "" : e.voucher ? `by @${e.voucher}` : "unknown",
-            // Denounced stays orange even with an unknown voucher (dashed); unknown vouches are dashed grey.
-            color: e.status === "denounced" ? ORANGE : e.voucher ? TEAL : GREY,
+            // Denounced stays red even with an unknown voucher (dashed); unknown vouches are dashed grey.
+            hasVoucher: e.voucher ? 1 : 0,
             style: e.voucher ? "solid" : "dashed",
             status: e.status,
-            statusColor: e.status === "vouched" ? TEAL : ORANGE,
           },
         });
       });
@@ -102,66 +188,13 @@ export default function TrustGraph({ center, edges }: Props) {
             : { name: "grid", animate: false },
         minZoom: 0.1,
         maxZoom: 3,
-        style: [
-          {
-            selector: "node",
-            style: {
-              label: "data(label)",
-              shape: "round-rectangle",
-              width: "label" as never,
-              height: "label" as never,
-              padding: `${t.pad}px` as never,
-              "font-family": "IBM Plex Mono, ui-monospace, monospace",
-              "font-size": t.font,
-              color: "#0B4F4A",
-              "text-valign": "center",
-              "text-halign": "center",
-              "background-color": "#E1F2EF",
-              "border-width": 1,
-              "border-color": TEAL,
-            },
-          },
-          { selector: 'node[kind = "user"]', style: { "background-color": "#FFFFFF", color: "#0E1726", "border-color": "#8A94A3" } },
-          {
-            selector: 'node[status = "denounced"]',
-            style: { "background-color": "#FBEBDD", color: "#7C2D12", "border-color": ORANGE, "border-width": 2, "font-weight": 600, "z-index": 10 },
-          },
-          {
-            selector: "node[isCenter = 1]",
-            style: {
-              shape: "round-rectangle",
-              "corner-radius": 999 as never,
-              padding: "12px" as never,
-              "background-color": "#0E1726",
-              "border-width": 0,
-              color: "#FFFFFF",
-              "font-family": "IBM Plex Sans, system-ui, sans-serif",
-              "font-weight": 600,
-              "font-size": 14,
-            },
-          },
-          {
-            selector: "edge",
-            style: {
-              width: t.edge,
-              opacity: nodeCount > 40 ? 0.55 : 1,
-              "line-color": "data(color)",
-              "line-style": "data(style)" as never,
-              "curve-style": "straight",
-              label: "data(label)",
-              "font-size": 11,
-              "font-family": "IBM Plex Sans, system-ui, sans-serif",
-              color: "#4A5568",
-              "text-background-color": "#FFFFFF",
-              "text-background-opacity": 1,
-              "text-background-padding": "3px",
-            },
-          },
-          { selector: 'edge[status = "denounced"]', style: { opacity: 1, width: Math.max(2, t.edge), "z-index": 10 } },
-        ],
+        style: styleFor(readPalette()),
       });
       cyRef.current = cy;
       fit();
+      // Re-color when the Arc theme switch flips data-theme on <html>.
+      themeObserver = new MutationObserver(() => cy?.style(styleFor(readPalette())));
+      themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-accent"] });
       cy.on("tap", "node", (evt) => {
         const d = evt.target.data();
         if (d.isCenter) return;
@@ -170,6 +203,7 @@ export default function TrustGraph({ center, edges }: Props) {
     })();
     return () => {
       cancelled = true;
+      themeObserver?.disconnect();
       cy?.destroy();
       cyRef.current = null;
     };
@@ -180,10 +214,12 @@ export default function TrustGraph({ center, edges }: Props) {
     <div ref={wrapRef} className={`graph-wrap${fullscreen ? " is-fullscreen" : ""}`}>
       <div className="graph-tools">
         <span className="muted small">{nodeCount - 1} {center.kind === "user" ? "projects" : "users"}</span>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={fit}>Fit</button>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={toggleFullscreen} aria-pressed={fullscreen}>
+        <Button variant="ghost" size="sm" onClick={fit}>
+          Fit
+        </Button>
+        <Button variant="ghost" size="sm" onClick={toggleFullscreen} aria-pressed={fullscreen}>
           {fullscreen ? "Exit fullscreen" : "Fullscreen"}
-        </button>
+        </Button>
       </div>
       <div
         ref={ref}
@@ -193,9 +229,9 @@ export default function TrustGraph({ center, edges }: Props) {
         aria-label={`Trust graph for ${center.id}: ${edges.length} vouch list entries. The table below lists the same data.`}
       />
       <div className="legend" aria-hidden="true">
-        <span><i style={{ borderColor: TEAL }} />Vouched</span>
-        <span><i style={{ borderColor: GREY, borderTopStyle: "dashed" }} />Unknown voucher</span>
-        <span><i style={{ borderColor: ORANGE }} />Denounced{denouncedCount ? ` (${denouncedCount}, inner ring)` : ""}</span>
+        <span><i style={{ borderColor: "var(--success)" }} />Vouched</span>
+        <span><i style={{ borderColor: "var(--text-muted)", borderTopStyle: "dashed" }} />Unknown voucher</span>
+        <span><i style={{ borderColor: "var(--danger)" }} />Denounced{denouncedCount ? ` (${denouncedCount}, inner ring)` : ""}</span>
         <span>Click a node to explore it</span>
       </div>
     </div>

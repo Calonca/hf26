@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { Button } from "@/components/arc/button/button";
+import { Input } from "@/components/arc/input/input";
 import { redirect } from "next/navigation";
 import { indexStats } from "@/server/actions/explore";
 
@@ -19,9 +21,8 @@ export default async function ProfileLookup({ searchParams }: { searchParams: Pr
         <h1>Look up a contributor</h1>
         <p>Public GitHub activity, vouch entries and an AI brief for any GitHub handle.</p>
         <form className="search-form" action="/profile" method="get" role="search">
-          <label htmlFor="q" className="sr-only">GitHub handle</label>
-          <input id="q" name="q" placeholder="GitHub handle, e.g. @deste04" autoComplete="off" required />
-          <button className="btn btn-primary" type="submit">Show profile</button>
+          <Input id="q" name="q" label="GitHub handle" placeholder="e.g. @deste04" autoComplete="off" required />
+          <Button type="submit">Show profile</Button>
         </form>
         <div className="row small muted">
           <span>Team:</span>

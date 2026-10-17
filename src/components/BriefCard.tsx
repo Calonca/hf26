@@ -1,6 +1,10 @@
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { runEdge } from "@/client/edgeAi";
+import { Alert } from "@/components/arc/alert/alert";
+import { Badge } from "@/components/arc/badge/badge";
+import { Button } from "@/components/arc/button/button";
+import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { modelLabel } from "@/lib/edgeModel";
 import type { Brief } from "@/server/ai/tasks";
 import { EdgeStatusLine } from "./EdgeStatusLine";
@@ -24,33 +28,34 @@ export function BriefCard({ login }: { login: string }) {
       <div className="brief-head">
         <h2 id="brief-title">Contribution brief</h2>
         <div className="brief-actions">
-          <span className="brief-badge mono">
+          <Badge tone="info" size="sm">
             written by {modelLabel(res && res.ok ? res.model : undefined)} · runs in your browser
-          </span>
-          <button type="button" className="btn btn-ghost" onClick={() => regen.mutate()} disabled={loading}>
-            {regen.isPending ? "Regenerating…" : "Regenerate"}
-          </button>
+          </Badge>
+          <Button variant="ghost" size="sm" onClick={() => regen.mutate()} disabled={loading} loading={regen.isPending}>
+            Regenerate
+          </Button>
         </div>
       </div>
 
       {loading && (
-        <div role="status" aria-label="The model is writing the brief">
-          <div className="skeleton" style={{ height: 16, width: "92%" }} />
-          <div className="skeleton" style={{ height: 16, width: "80%", marginTop: 8 }} />
-          <div className="skeleton" style={{ height: 16, width: "64%", marginTop: 8 }} />
+        <div className="stack">
+          <Skeleton label="The model is writing the brief" lines={3} />
           <EdgeStatusLine>The model is reading public activity…</EdgeStatusLine>
         </div>
       )}
       {!loading && q.error && (
-        <div className="error-box" role="alert">
-          Could not load brief: {String(q.error)}
-        </div>
+        <Alert tone="danger" title="Could not load brief" role="alert">
+          {String(q.error)}
+        </Alert>
       )}
       {!loading && res && !res.ok && (
-        <div className="error-box" role="alert">
-          <strong>{res.error.code === "model_unavailable" ? "Model unavailable" : res.error.code === "not_found" ? "Not found" : "Invalid model output"}</strong>
-          <p>{res.error.message}</p>
-        </div>
+        <Alert
+          tone="warning"
+          role="alert"
+          title={res.error.code === "model_unavailable" ? "Model unavailable" : res.error.code === "not_found" ? "Not found" : "Invalid model output"}
+        >
+          {res.error.message}
+        </Alert>
       )}
       {!loading && res && res.ok && (
         <>
@@ -72,9 +77,9 @@ export function BriefCard({ login }: { login: string }) {
           {res.data.areas.length > 0 && (
             <div className="brief-areas" aria-label="Areas">
               {res.data.areas.map((a) => (
-                <span key={a} className="chip">
+                <Badge key={a} tone="neutral" size="sm">
                   {a}
-                </span>
+                </Badge>
               ))}
             </div>
           )}
