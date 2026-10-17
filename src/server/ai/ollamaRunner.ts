@@ -21,7 +21,8 @@ export async function generate(system: string, prompt: string, jsonSchema: objec
         { role: "user", content: prompt },
       ],
       format: jsonSchema,
-      options: { temperature: 0.2 },
+      // Default context is 4096 tokens; Discover prompts plus output overflow it and truncate the JSON.
+      options: { temperature: 0.2, num_ctx: 8192 },
       stream: false,
     }),
   });

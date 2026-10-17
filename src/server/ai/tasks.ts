@@ -283,7 +283,7 @@ const MatchSchema = z.object({
 const DiscoverSchema = z.object({ matches: z.array(MatchSchema).max(5) });
 export type Match = { project: string; fit: (typeof FIT)[number]; why: string; issue_urls: string[] };
 
-const MAX_CANDIDATES = 25;
+const MAX_CANDIDATES = 15;
 
 /** Cheap keyword pre-filter so the prompt fits a small (possibly in-browser) model's context. */
 function candidates(skills: string) {
@@ -306,7 +306,7 @@ export async function prepareDiscover(skills: string, hoursPerWeek: string): Pro
   const normalized = skills.toLowerCase().replace(/\s+/g, " ").trim();
   const projects = candidates(normalized).map((p) => ({
     project: p.full_name,
-    description: p.description,
+    description: p.description?.slice(0, 160) ?? null,
     language: p.language,
     topics: JSON.parse(p.topics || "[]") as string[],
     issues: projectsRepo.issuesFor(p.id),
