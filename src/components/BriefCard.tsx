@@ -1,23 +1,38 @@
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { runEdge } from "@/client/edgeAi";
+import { useEffect, useRef } from "react";
 import { Alert } from "@/components/arc/alert/alert";
 import { Badge } from "@/components/arc/badge/badge";
 import { Button } from "@/components/arc/button/button";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
-import { modelLabel } from "@/lib/edgeModel";
-import type { Brief } from "@/server/ai/tasks";
-import { EdgeStatusLine } from "./EdgeStatusLine";
+import type { AiResult, Brief } from "@/server/ai/tasks";
 import { EvidenceList } from "./EvidenceList";
 
-const getBrief = (login: string, force: boolean) => runEdge<Brief>({ kind: "brief", login }, force);
+/** "gemma4:e4b" → "Gemma 4" */
+function modelName(model: string) {
+  const m = model.match(/^gemma(\d+)/i);
+  return m ? `Gemma ${m[1]}` : model;
+}
+
+/** Aborting `signal` (e.g. leaving the profile) stops generation on the server. */
+async function fetchBrief(login: string, force: boolean, signal?: AbortSignal): Promise<AiResult<Brief>> {
+  const res = await fetch(`/api/ai/brief?login=${encodeURIComponent(login)}${force ? "&force=1" : ""}`, { signal });
+  return res.json();
+}
 
 export function BriefCard({ login }: { login: string }) {
   const qc = useQueryClient();
   const key = ["brief", login.toLowerCase()];
-  const q = useQuery({ queryKey: key, queryFn: () => getBrief(login, false), staleTime: Infinity });
+  // TanStack Query aborts `signal` when the last observer unmounts, i.e. when the profile closes.
+  const q = useQuery({ queryKey: key, queryFn: ({ signal }) => fetchBrief(login, false, signal), staleTime: Infinity });
+  const regenAbort = useRef<AbortController | null>(null);
+  useEffect(() => () => regenAbort.current?.abort(), []);
   const regen = useMutation({
-    mutationFn: () => getBrief(login, true),
+    mutationFn: () => {
+      regenAbort.current?.abort();
+      regenAbort.current = new AbortController();
+      return fetchBrief(login, true, regenAbort.current.signal);
+    },
     onSuccess: (res) => qc.setQueryData(key, res),
   });
   const res = regen.isPending ? undefined : q.data;
@@ -29,7 +44,7 @@ export function BriefCard({ login }: { login: string }) {
         <h2 id="brief-title">Contribution brief</h2>
         <div className="brief-actions">
           <Badge tone="info" size="sm">
-            written by {modelLabel(res && res.ok ? res.model : undefined)} · runs in your browser
+            written by {res && res.ok ? modelName(res.model) : "Gemma 4"} · runs locally
           </Badge>
           <Button variant="ghost" size="sm" onClick={() => regen.mutate()} disabled={loading} loading={regen.isPending}>
             Regenerate
@@ -39,8 +54,8 @@ export function BriefCard({ login }: { login: string }) {
 
       {loading && (
         <div className="stack">
-          <Skeleton label="The model is writing the brief" lines={3} />
-          <EdgeStatusLine>The model is reading public activity…</EdgeStatusLine>
+          <Skeleton label="Gemma is writing the brief" lines={3} />
+          <p className="muted small">Gemma is reading public activity…</p>
         </div>
       )}
       {!loading && q.error && (
@@ -50,9 +65,17 @@ export function BriefCard({ login }: { login: string }) {
       )}
       {!loading && res && !res.ok && (
         <Alert
-          tone="warning"
+          tone={res.error.code === "cancelled" ? "info" : "warning"}
           role="alert"
-          title={res.error.code === "model_unavailable" ? "Model unavailable" : res.error.code === "not_found" ? "Not found" : "Invalid model output"}
+          title={
+            res.error.code === "model_unavailable"
+              ? "Model unavailable"
+              : res.error.code === "not_found"
+                ? "Not found"
+                : res.error.code === "cancelled"
+                  ? "Cancelled"
+                  : "Invalid model output"
+          }
         >
           {res.error.message}
         </Alert>
@@ -60,6 +83,12 @@ export function BriefCard({ login }: { login: string }) {
       {!loading && res && res.ok && (
         <>
           <p className="brief-summary">{res.data.summary}</p>
+          {res.data.vouch_lists && (
+            <div className={`brief-block brief-vouch${/denounc/i.test(res.data.vouch_lists) ? " is-warn" : ""}`}>
+              <h3>What maintainers&apos; vouch lists say</h3>
+              <p>{res.data.vouch_lists}</p>
+            </div>
+          )}
           <div className="brief-block">
             <h3>Evidence</h3>
             <EvidenceList items={res.data.strengths} />

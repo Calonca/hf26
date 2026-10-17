@@ -2,23 +2,15 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { runEdge } from "@/client/edgeAi";
+import { getTriage } from "@/server/actions/ai";
 import { Alert } from "@/components/arc/alert/alert";
 import { Badge, type BadgeTone } from "@/components/arc/badge/badge";
 import { Button } from "@/components/arc/button/button";
 import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { Textarea } from "@/components/arc/textarea/textarea";
-import type { Brief, Triage } from "@/server/ai/tasks";
 import { decideRequest } from "@/server/actions/pages";
 import type { VouchRequest, Decision } from "@/db/repo";
-import { EdgeStatusLine } from "./EdgeStatusLine";
 import { SampleChip } from "./SampleChip";
-
-// Triage reads the requester's cached brief, so generate that first.
-async function getTriage(request: VouchRequest, force: boolean) {
-  await runEdge<Brief>({ kind: "brief", login: request.requester_login });
-  return runEdge<Triage>({ kind: "triage", requestId: request.id }, force);
-}
 
 const STATUS_LABEL: Record<string, string> = {
   open: "Open",
@@ -118,8 +110,8 @@ function RequestDetail({
 }) {
   const qc = useQueryClient();
   const key = ["triage", request.id];
-  const triage = useQuery({ queryKey: key, queryFn: () => getTriage(request, false), staleTime: Infinity });
-  const regen = useMutation({ mutationFn: () => getTriage(request, true), onSuccess: (r) => qc.setQueryData(key, r) });
+  const triage = useQuery({ queryKey: key, queryFn: () => getTriage(request.id, false), staleTime: Infinity });
+  const regen = useMutation({ mutationFn: () => getTriage(request.id, true), onSuccess: (r) => qc.setQueryData(key, r) });
   const [reply, setReply] = useState<string>(request.reply_text ?? "");
   const [confirmDenounce, setConfirmDenounce] = useState(false);
   const res = regen.isPending ? undefined : triage.data;
@@ -152,20 +144,19 @@ function RequestDetail({
 
       <div className="req-brief">
         <div className="req-brief-head">
-          <h3>AI brief</h3>
-          <Badge tone="info" size="sm">public data · in-browser model</Badge>
+          <h3>Gemma brief</h3>
+          <Badge tone="info" size="sm">public data · local model</Badge>
           <Button variant="ghost" size="sm" onClick={() => regen.mutate()} disabled={loading} loading={regen.isPending}>
             Re-check
           </Button>
         </div>
         {loading && (
-          <div className="req-checks" aria-busy="true" aria-label="The model is checking the request">
+          <div className="req-checks" aria-busy="true" aria-label="Gemma is checking the request">
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="req-check">
-                <Skeleton label="The model is checking the request" lines={1} />
+                <Skeleton label="Gemma is checking the request" lines={1} />
               </div>
             ))}
-            <EdgeStatusLine>The model is checking the request…</EdgeStatusLine>
           </div>
         )}
         {!loading && res && !res.ok && (

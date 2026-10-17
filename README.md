@@ -11,28 +11,25 @@ Vouch Explorer indexes public `VOUCHED.td` files and connects them:
 | Page | What it does |
 | --- | --- |
 | **Explore** `/` | Trust graph: where a GitHub user is vouched, and by whom (voucher from git history, or "unknown"; never guessed). |
-| **Profile** `/u/:handle` | A small in-browser model writes a short, explainable contribution brief from public PRs, reviews and issues, with every claim linked to evidence. **Never a score.** |
-| **Requests** `/requests` | Maintainer inbox for vouch requests: the model lists checks with evidence and drafts a reply. A human clicks Vouch / Ask for more info / Denounce. |
-| **Discover** `/discover` | Type your skills and weekly hours. The model ranks indexed projects and good-first issues, with a one-line reason each. |
+| **Profile** `/u/:handle` | Gemma writes a short, explainable contribution brief from public PRs, reviews and issues, with every claim linked to evidence. **Never a score.** |
+| **Requests** `/requests` | Maintainer inbox for vouch requests: Gemma lists checks with evidence and drafts a reply. A human clicks Vouch / Ask for more info / Denounce. |
+| **Discover** `/discover` | Type your skills and weekly hours. Gemma ranks indexed projects and good-first issues, with a one-line reason each. |
 
 ## AI explains, humans decide
 
 - No auto-vouch, no auto-denounce, no numeric reputation score anywhere.
 - Every prompt says: *use only the data provided; say when evidence is missing; do not rate or score the person; do not recommend vouching or denouncing.*
-- Every model output is given a JSON schema in the prompt, validated with zod on the server, and **every evidence link is checked against the input URLs**. Links the model invents are dropped.
+- Every model output is constrained with a JSON schema (Ollama `format`), validated with zod, and **every evidence link is checked against the input URLs**. Links the model invents are dropped.
 - Decisions in Requests are recorded with who decided and when. In production this would open a PR updating `VOUCHED.td`; today nothing is written to GitHub.
 - Public data only: public `VOUCHED.td` files and public GitHub activity.
 
 ## Model
 
-**Qwen3.5 0.8B**, text-only build quantized to 4 bit ([`onnx-community/Qwen3.5-0.8B-Text-ONNX`](https://huggingface.co/onnx-community/Qwen3.5-0.8B-Text-ONNX)), open-weight (Apache 2.0), running **on the edge: in the visitor's browser** via [Transformers.js](https://huggingface.co/docs/transformers.js) in a Web Worker. WebGPU uses `q4f16` (~470 MB), the WASM fallback uses `q4` (~550 MB). The weights download from the Hugging Face Hub on first use and stay in the browser cache.
-
-No inference server: the server builds the prompt (`prepareAi`), the browser runs the model, and the server validates and grounds the output (`submitAi`) before caching it in SQLite (`ai_briefs`). Cached results are served to everyone without loading the model. Switch model in `src/lib/edgeModel.ts` (e.g. `Qwen3.5-2B-ONNX` for better output at ~1.4 GB).
+**Gemma 4** (demo uses `gemma4:e2b-it-qat`, 4.3 GB; any Gemma 4 tag works via `OLLAMA_MODEL`), open-weight, running **locally via [Ollama](https://ollama.com)**. Gemma is provided under the [Gemma Terms of Use](https://ai.google.dev/gemma/terms). No data leaves your machine for inference. AI outputs are cached in SQLite (`ai_briefs`), so every page also works with Ollama stopped.
 
 ## Stack
 
-- **Next.js 16** (App Router, React Server Components, server actions) and TypeScript. All GitHub and DB calls run on the server; the model runs in the browser.
-- **Transformers.js** for the in-browser model.
+- **Next.js 16** (App Router, React Server Components, server actions) and TypeScript. All GitHub, DB and model calls run on the server.
 - **TanStack Query** for loading and error states around slow model calls.
 - **Drizzle ORM** + **SQLite** (`better-sqlite3`), file at `./data/vouch.db`. All access goes through `src/db/repo/*`, and only `src/db/client.ts` knows the driver, so moving to libSQL/Turso or Postgres touches only that file and the Drizzle dialect.
 - **Octokit** for GitHub, with every response cached in the DB.
@@ -41,10 +38,12 @@ No inference server: the server builds the prompt (`prepareAi`), the browser run
 
 ## Setup
 
-Requires Node 22+. To generate AI output, a recent browser (WebGPU recommended: Chrome, Edge or Safari) and ~500 MB free for the model cache.
+Requires Node 22+ and [Ollama](https://ollama.com/download).
 
 ```bash
-cp .env.example .env                # GITHUB_TOKEN, DATABASE_URL
+ollama pull gemma4:e2b-it-qat        # or set OLLAMA_MODEL to another Gemma 4 tag from `ollama list`
+# AMD/Intel integrated GPU? Ollama skips iGPUs by default: OLLAMA_IGPU_ENABLE=1 ollama serve  (~2x faster on a Radeon 860M)
+cp .env.example .env                # GITHUB_TOKEN, OLLAMA_MODEL, DATABASE_URL
 npm ci
 npm run db:push                     # create tables
 npm run db:seed                     # demo vouch requests on a real repo (labelled "Demo request"); everything else is crawled

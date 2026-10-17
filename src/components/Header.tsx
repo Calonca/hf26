@@ -1,9 +1,16 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/arc/badge/badge";
-import { modelLabel } from "@/lib/edgeModel";
+import AiQueue from "./AiQueue";
 import NavLinks from "./NavLinks";
 import { ThemeToggle } from "./ThemeToggle";
+
+/** "gemma4:e4b" → "Gemma 4 E4B · local" */
+export function modelLabel(model = process.env.OLLAMA_MODEL ?? "gemma4:e4b") {
+  const m = model.match(/^gemma(\d+)(?::([^-]+))?/i);
+  if (!m) return `${model} · local`;
+  return `Gemma ${m[1]}${m[2] ? " " + m[2].toUpperCase() : ""} · local`;
+}
 
 export default function Header() {
   return (
@@ -22,8 +29,9 @@ export default function Header() {
           <NavLinks />
         </Suspense>
         <div className="header-tools">
-          <Badge tone="info" className="mono" title="Open-weight model, runs in your browser">
-            {modelLabel()} · edge
+          <AiQueue />
+          <Badge tone="info" className="mono" title="Open-weight model, runs locally">
+            {modelLabel()}
           </Badge>
           <ThemeToggle />
         </div>

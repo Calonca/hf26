@@ -14,7 +14,6 @@
     "enrich": "tsx scripts/enrich.ts"
   },
   "dependencies": {
-    "@huggingface/transformers": "^4.3.1",
     "@octokit/rest": "^22.0.1",
     "@radix-ui/react-dialog": "^1.3.1",
     "@radix-ui/react-select": "^2.4.1",
