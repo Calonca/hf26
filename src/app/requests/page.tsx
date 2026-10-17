@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { RequestList } from "@/components/RequestList";
-import { SampleChip } from "@/components/SampleChip";
 import { listRequestProjects, listRequests } from "@/server/actions/pages";
 import { getCurrentUser } from "@/server/auth";
-import "../pages.css";
+import "./requests.css";
 
 export const dynamic = "force-dynamic";
 
@@ -16,21 +15,27 @@ export default async function RequestsPage({ searchParams }: { searchParams: Pro
   const me = getCurrentUser();
 
   return (
-    <main className="container">
-      <h1 className="page-title">Vouch requests</h1>
-      <p className="muted">
-        Maintainer inbox. Signed in as <span className="mono">{me.login}</span> (demo). Gemma summarises, you decide.
+    <main className="container req-page">
+      <div className="req-title">
+        <h1>Vouch requests</h1>
+        {current && <span className="mono muted">maintainer view · {current.full_name}</span>}
+      </div>
+      <p className="muted small">
+        Signed in as <span className="mono">{me.login}</span> (demo). Gemma summarises, you decide.
       </p>
       {projects.length === 0 ? (
-        <p className="muted">No requests yet. Run <span className="mono">npm run db:seed</span>.</p>
+        <p className="muted">
+          No requests yet. Run <span className="mono">npm run db:seed</span>.
+        </p>
       ) : (
         <>
-          <nav className="project-picker" aria-label="Choose project">
+          <nav className="req-picker" aria-label="Choose project">
+            <span className="small muted">Project</span>
             {projects.map((p) => (
               <Link
                 key={p.id}
                 href={`/requests?project=${encodeURIComponent(p.full_name)}`}
-                className={`chip mono${p.id === current?.id ? " chip-selected" : ""}`}
+                className={`req-picker-link mono${p.id === current?.id ? " is-current" : ""}`}
                 aria-current={p.id === current?.id ? "page" : undefined}
               >
                 {p.full_name}
@@ -38,12 +43,7 @@ export default async function RequestsPage({ searchParams }: { searchParams: Pro
             ))}
           </nav>
           {current && (
-            <>
-              <h2 className="section-title">
-                <span className="mono">{current.full_name}</span> <SampleChip show={current.is_seed === 1} />
-              </h2>
-              <RequestList initial={requests} project={current.full_name} />
-            </>
+            <RequestList key={current.id} initial={requests} project={current.full_name} isSeed={current.is_seed === 1} />
           )}
         </>
       )}

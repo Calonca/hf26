@@ -3,27 +3,47 @@
     "full_name": "sample-org/termlight",
     "description": "A tiny GPU-accelerated terminal widget library (sample project for the demo).",
     "language": "Zig",
-    "topics": ["terminal", "gpu", "zig", "cli"],
+    "topics": [
+      "terminal",
+      "gpu",
+      "zig",
+      "cli"
+    ],
     "stars": 0,
     "file": "termlight.td",
-    "vouchers": { "doprz": "mitchellh", "trag1c": "mitchellh" }
+    "vouchers": {
+      "fabianhogger": "Calonca"
+    }
   },
   {
     "full_name": "sample-org/docsmith",
     "description": "Static documentation generator with live examples (sample project for the demo).",
     "language": "TypeScript",
-    "topics": ["docs", "static-site", "markdown"],
+    "topics": [
+      "docs",
+      "static-site",
+      "markdown"
+    ],
     "stars": 0,
     "file": "docsmith.td",
-    "vouchers": { "faukah": "vancluever" }
+    "vouchers": {
+      "Calonca": "deste04"
+    }
   },
   {
     "full_name": "sample-org/pgkit",
     "description": "Migration and schema-diff toolkit for Postgres (sample project for the demo).",
     "language": "Go",
-    "topics": ["postgres", "database", "migrations", "cli"],
+    "topics": [
+      "postgres",
+      "database",
+      "migrations",
+      "cli"
+    ],
     "stars": 0,
     "file": "pgkit.td",
-    "vouchers": {}
+    "vouchers": {
+      "fabianhogger": "deste04"
+    }
   }
 ]
