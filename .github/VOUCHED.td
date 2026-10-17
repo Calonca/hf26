@@ -8,4 +8,5 @@
 #  - Optionally, add details after a space following the handle.
 Calonca Hack Day team
 deste04 Hack Day team
+dogwolf
 fabianhogger Hack Day team
