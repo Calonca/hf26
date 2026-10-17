@@ -90,6 +90,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                             <Link className="mono" href={`/u/${encodeURIComponent(e.login)}`}>@{e.login}</Link>
                           )}{" "}
                           <SampleChip show={e.is_seed} />
+                          {e.origin === "shared" && <span className="chip">Shared index</span>}
                         </td>
                         <td>
                           <Badge tone={e.status === "vouched" ? "success" : "danger"} size="sm">{e.status === "vouched" ? "Vouched" : "Denounced"}</Badge>
@@ -147,6 +148,12 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
               <div className="stat"><b>{fmt(stats.denounced)}</b><span>denounced</span></div>
               <div className="stat"><b>{fmt(stats.events)}</b><span>vouch events</span></div>
             </div>
+            {stats.shared && (
+              <p className="muted small">
+                Shared index: {fmt(stats.shared.projects)} projects · {fmt(stats.shared.vouched)} vouched ·{" "}
+                {fmt(stats.shared.denounced)} denounced
+              </p>
+            )}
           </section>
         </aside>
       </div>

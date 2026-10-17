@@ -23,3 +23,7 @@ The model call is isolated so it can move client-side without touching prompts, 
   - Triage uses the requester's cached brief for the same `model` if present, so run the brief first.
 - Discover pre-filters to the 25 projects with the best keyword overlap so the prompt (~7 KB) fits a small model's context.
 - UI components calling the server path today: `BriefCard.tsx` (getBrief), `RequestList.tsx` (getTriage), `discover/DiscoverClient.tsx` (getMatches).
+
+- **Shared trust index (Neon) is additive, never required.** `src/db/neon/*` reads a flat, precomputed `trust_edges` table; `src/db/client.ts` and `src/db/repo/*` are untouched and still SQLite. Every shared read is wrapped in try/catch returning empty, so an unreachable or unconfigured index degrades to local-only rendering.
+- **On a merge conflict, the local edge wins** (`src/server/trust/merge.ts`). A local edge is derived from this machine's read of the real git history, including voucher attribution; a shared row is a summary, so it must never overwrite a known voucher with "unknown". Dedup is case-insensitive on `(project, login)`.
+- Shared counts are reported **separately** on Explore rather than summed into the local totals, so "projects with VOUCHED.td" stays truthful about the local index.

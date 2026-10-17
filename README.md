@@ -44,6 +44,7 @@ Vouch Explorer indexes public `VOUCHED.td` files and connects them into one trus
   - Moving to Turso or Postgres means changing only `src/db/client.ts` and the Drizzle dialect.
   - The schema is portable: JSON stored as text, ISO-8601 timestamps, and no views (`trust_edges` is a query in the repo layer).
 - **Octokit**: code search, repo metadata, file history and contributions. Every GitHub response is cached in the database.
+- **Lakebase Postgres on Neon** (optional): a read-only *shared* trust index merged into Explore, so the graph is not limited to this machine's crawl. Written by a separate process (`npm run crawl:shared`); unset `NEON_DATABASE_URL` and the app runs on SQLite alone.
 - **Ollama + Gemma 4**: JSON-schema output, zod validation, one first-in-first-out queue, and abortable requests.
 - **Cytoscape.js** for the graph, **[Arc UI](https://uiarc.dev)** components and tokens (CSS modules, copied into `src/components/arc/`; Geist, Inter and Geist Mono; light and dark theme), **vitest** for tests.
 - `npm audit`: **0 production vulnerabilities**. The 4 moderate findings are dev-only, from `drizzle-kit`'s bundled esbuild.
@@ -70,6 +71,7 @@ npm test                            # parser + AI output grounding tests
   - `--repo owner/name`: index one repo directly; code search can take a while to pick up new files.
   - `--prune`: remove projects indexed from non-canonical paths.
 - **`enrich` options:** `--limit 60`, `--commits 30`, `--repo owner/name`.
+- **Shared index (optional):** set `NEON_DATABASE_URL` (pooled, SELECT-only) to merge it into Explore, and `NEON_WRITE_URL` (direct, owner) for the writer. `npm run crawl:shared -- --init` creates the table; `-- --limit 50 --commits 20` fills it. `GET /api/trust?q=` and `GET /api/stats` serve the merged data as JSON.
 - **Before a demo:** open each demo screen once while the model is running, so its result is cached.
 
 ## Demo
