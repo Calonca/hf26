@@ -25,7 +25,7 @@ Vouch Explorer indexes public `VOUCHED.td` files and connects them:
 
 ## Model
 
-**Gemma 4** (default `gemma4:e4b`), open-weight, running **locally via [Ollama](https://ollama.com)**. Gemma is provided under the [Gemma Terms of Use](https://ai.google.dev/gemma/terms). No data leaves your machine for inference. AI outputs are cached in SQLite (`ai_briefs`), so every page also works with Ollama stopped.
+**Gemma 4** (demo uses `gemma4:e2b-it-qat`, 4.3 GB; any Gemma 4 tag works via `OLLAMA_MODEL`), open-weight, running **locally via [Ollama](https://ollama.com)**. Gemma is provided under the [Gemma Terms of Use](https://ai.google.dev/gemma/terms). No data leaves your machine for inference. AI outputs are cached in SQLite (`ai_briefs`), so every page also works with Ollama stopped.
 
 ## Stack
 
@@ -41,7 +41,8 @@ Vouch Explorer indexes public `VOUCHED.td` files and connects them:
 Requires Node 22+ and [Ollama](https://ollama.com/download).
 
 ```bash
-ollama pull gemma4:e4b              # or set OLLAMA_MODEL to another Gemma 4 tag from `ollama list`
+ollama pull gemma4:e2b-it-qat        # or set OLLAMA_MODEL to another Gemma 4 tag from `ollama list`
+# AMD/Intel integrated GPU? Ollama skips iGPUs by default: OLLAMA_IGPU_ENABLE=1 ollama serve  (~2x faster on a Radeon 860M)
 cp .env.example .env                # GITHUB_TOKEN, OLLAMA_MODEL, DATABASE_URL
 npm ci
 npm run db:push                     # create tables
