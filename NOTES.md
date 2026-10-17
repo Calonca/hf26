@@ -8,3 +8,18 @@
 - No auth: `getCurrentUser()` returns a fixed demo maintainer (TODO: GitHub OAuth).
 - **ESLint removed:** `eslint-config-next` pulled in packages with high-severity `npm audit` findings. TypeScript (`tsc --noEmit`) is the static check.
 - Seeded projects and requests have `is_seed = 1` and show a "Sample data" chip.
+
+## Moving the model into the browser (handoff)
+
+The model call is isolated so it can move client-side without touching prompts, validation or caching:
+
+- `src/server/ai/tasks.ts`: model-agnostic. `prepareBrief / prepareTriage / prepareDiscover` build the input + prompt + zod schema; `complete()` does JSON.parse → zod → drops any URL not present in the input → caches in `ai_briefs` keyed by `(subject_type, subject_key, model, prompt_version)`.
+- `src/server/ai/ollamaRunner.ts`: the **only** Ollama code (`generate(system, prompt, jsonSchema)`). Delete it, and `runOnServer` / `getBrief|getTriage|getMatches`, once the browser path is wired.
+- Browser flow (server actions in `src/server/actions/ai.ts`):
+  1. `prepareAi(task, model, force?)` → `{ cached }` (show it) or `{ spec: { system, prompt, jsonSchema } }`
+  2. run the in-browser model with `spec` (constrain to `jsonSchema` if the runtime supports it)
+  3. `submitAi(task, model, rawText)` → `AiResult` (validated + grounded on the server, then cached)
+  - `task` is `{kind:"brief",login}` | `{kind:"triage",requestId}` | `{kind:"discover",skills,hours}`.
+  - Triage uses the requester's cached brief for the same `model` if present, so run the brief first.
+- Discover pre-filters to the 25 projects with the best keyword overlap so the prompt (~7 KB) fits a small model's context.
+- UI components calling the server path today: `BriefCard.tsx` (getBrief), `RequestList.tsx` (getTriage), `discover/DiscoverClient.tsx` (getMatches).
