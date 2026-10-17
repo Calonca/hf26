@@ -48,9 +48,10 @@ npm run db:push                     # create tables
 npm run db:seed                     # sample projects + vouch requests (labelled "Sample data")
 npm run crawl                       # index public VOUCHED.td files via GitHub code search
 npm run enrich                      # read git history of each VOUCHED.td → who vouched whom
-npm run prewarm                     # optional: generate AI briefs for the demo screens ahead of time
 npm run dev                         # http://localhost:3000
 ```
+
+**Pre-warming for a demo:** with the model running, open each demo screen once (Profile, each request on Requests, your Discover query). Results are cached in `ai_briefs`, so the same screens then load instantly even with the model stopped.
 
 `GITHUB_TOKEN` needs only public read access. If it is empty, the scripts fall back to `gh auth token`.
 
