@@ -2,6 +2,8 @@
 
 **Connects the islands of open-source trust.** Built for Hacktoberfest Hack Day, "Best Open-Source AI Project" challenge.
 
+**Presentation:** [Vouch Explorer slides](https://claude.ai/artifact/7n4nuT3J1MYDY1XMUyDWPH)
+
 ## Problem
 
 - AI-generated slop PRs and issues flood maintainers.
