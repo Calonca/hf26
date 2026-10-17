@@ -10,7 +10,7 @@ import { generate, SERVER_MODEL } from "./ollamaRunner";
 
 export const PROMPT_VERSIONS = {
   brief: "brief-v1",
-  triage: "triage-v1",
+  triage: "triage-v2",
   discover: "discover-v1",
 } as const;
 
@@ -171,14 +171,16 @@ export async function prepareTriage(requestId: number, model: string): Promise<P
   const brief = cachedResult(await prepareBrief(req.requester_login), model) ?? { ok: false as const };
   const contributions = await safeContributions(req.requester_login);
   const inRepo = contributions.filter((c) => c.repo.toLowerCase() === repo.toLowerCase());
-  const elsewhere = trustRepo
-    .edgesForUser(req.requester_login)
+  const edges = trustRepo.edgesForUser(req.requester_login);
+  const here = edges.find((e) => e.project === repo);
+  const elsewhere = edges
     .filter((e) => e.project !== repo)
     .map((e) => ({ project: e.project, status: e.status, voucher: e.voucher ?? "unknown" }));
   const input = {
     project: repo,
     requester: req.requester_login,
     message: req.message,
+    status_in_this_repo_vouched_file: here ? { status: here.status, note: here.note } : "not listed",
     requester_brief: brief.ok ? brief.data : null,
     vouch_entries_elsewhere: elsewhere,
     activity_in_this_repo: inRepo.map(({ title, kind, state, url }) => ({ title, kind, state, url })),
@@ -196,7 +198,7 @@ export async function prepareTriage(requestId: number, model: string): Promise<P
     schema: TriageSchema,
     system: sys(
       "You help a maintainer read a vouch request. checks: 3-5 factual yes/no observations, e.g. 'Has prior activity in this repo', " +
-      "'Vouched in other projects', 'Message explains planned contribution', 'Denounced elsewhere' (ok=false when it is a concern or missing). " +
+      "'Vouched in other projects', 'Message names a specific planned contribution' (ok=false if vague), 'Not denounced in this repo or elsewhere' (ok=false if status_in_this_repo_vouched_file or any entry is denounced; quote the note). ok=false always means a concern or missing evidence. " +
       "evidence_url must be copied exactly from the input or null. draft_reply: a polite 1-3 sentence reply the maintainer can edit; it must not promise or refuse a vouch.",
     ),
     prompt: `Vouch request data:\n${JSON.stringify(input, null, 1)}`,
