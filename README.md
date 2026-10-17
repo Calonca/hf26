@@ -46,7 +46,7 @@ ollama pull gemma4:e2b-it-qat        # or set OLLAMA_MODEL to another Gemma 4 ta
 cp .env.example .env                # GITHUB_TOKEN, OLLAMA_MODEL, DATABASE_URL
 npm ci
 npm run db:push                     # create tables
-npm run db:seed                     # sample projects + vouch requests (labelled "Sample data")
+npm run db:seed                     # demo vouch requests on a real repo (labelled "Demo request"); everything else is crawled
 npm run crawl                       # index public VOUCHED.td files via GitHub code search
 npm run enrich                      # read git history of each VOUCHED.td → who vouched whom
 npm run dev                         # http://localhost:3000

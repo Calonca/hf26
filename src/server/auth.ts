@@ -3,5 +3,7 @@
 export type CurrentUser = { login: string; name: string };
 
 export function getCurrentUser(): CurrentUser {
-  return { login: "demo-maintainer", name: "Demo Maintainer" };
+  // The demo maintainer owns the repo that receives the demo requests (seed/requests.json).
+  const login = process.env.NEXT_PUBLIC_DEMO_USER ?? "Calonca";
+  return { login, name: login };
 }

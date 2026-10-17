@@ -192,7 +192,7 @@ export async function prepareTriage(requestId: number, model: string): Promise<P
   ]);
   return {
     subjectType: "request",
-    subjectKey: String(requestId),
+    subjectKey: `${requestId}:${req.requester_login}:${req.created_at}`, // ids can be reused after re-seeding
     promptVersion: PROMPT_VERSIONS.triage,
     input,
     schema: TriageSchema,

@@ -37,7 +37,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
             {stats.suggestions.slice(0, 6).map((s) => (
               <Link key={s} className="mono" href={`/?q=${encodeURIComponent(s)}`}>@{s}</Link>
             ))}
-            <Link className="mono" href="/?q=sample-org/termlight">sample-org/termlight</Link>
+            <Link className="mono" href="/?q=Calonca/hf26">Calonca/hf26</Link>
           </div>
         )}
       </section>

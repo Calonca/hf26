@@ -126,7 +126,7 @@ function RequestDetail({
         <h2 id={`req-${request.id}`}>
           <Link href={`/u/${request.requester_login}`}>@{request.requester_login}</Link> wants to contribute
         </h2>
-        <SampleChip show={isSeed} />
+        <SampleChip show={isSeed} label="Demo request" />
       </div>
       <blockquote className="req-message">“{request.message}”</blockquote>
       <p className="muted small">

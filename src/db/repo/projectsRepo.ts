@@ -51,8 +51,17 @@ export const projectsRepo = {
       .from(projects)
       .where(and(eq(projects.is_seed, 0), notInArray(projects.vouch_file_path, paths)))
       .all();
-    if (bad.length === 0) return [];
-    const ids = bad.map((b) => b.id);
+    projectsRepo.deleteCascade(bad.map((b) => b.id));
+    return bad.map((b) => b.full_name);
+  },
+  /** Seeded sample projects (is_seed = 1) with everything attached to them. */
+  deleteSeedProjects(): number {
+    const ids = db.select({ id: projects.id }).from(projects).where(eq(projects.is_seed, 1)).all().map((r) => r.id);
+    projectsRepo.deleteCascade(ids);
+    return ids.length;
+  },
+  deleteCascade(ids: number[]) {
+    if (ids.length === 0) return;
     db.transaction((tx) => {
       tx.delete(vouch_events).where(inArray(vouch_events.project_id, ids)).run();
       tx.delete(vouch_entries).where(inArray(vouch_entries.project_id, ids)).run();
@@ -60,6 +69,5 @@ export const projectsRepo = {
       tx.delete(vouch_requests).where(inArray(vouch_requests.project_id, ids)).run();
       tx.delete(projects).where(inArray(projects.id, ids)).run();
     });
-    return bad.map((b) => b.full_name);
   },
 };
