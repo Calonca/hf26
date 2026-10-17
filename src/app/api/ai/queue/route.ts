@@ -1,0 +1,13 @@
+import { cancelJob, listJobs } from "@/server/ai/queue";
+
+export const dynamic = "force-dynamic";
+
+export function GET() {
+  return Response.json(listJobs());
+}
+
+/** DELETE /api/ai/queue?id=3 cancels a queued or running job. */
+export function DELETE(request: Request) {
+  const id = Number(new URL(request.url).searchParams.get("id"));
+  return Response.json({ cancelled: cancelJob(id) });
+}

@@ -1,3 +1,4 @@
+import { Badge, type BadgeTone } from "@/components/arc/badge/badge";
 import { SampleChip } from "./SampleChip";
 
 export type ProjectCardProps = {
@@ -11,6 +12,7 @@ export type ProjectCardProps = {
 };
 
 const FIT_LABEL = { strong: "Strong fit", good: "Good fit", stretch: "Stretch" } as const;
+const FIT_TONE: Record<ProjectCardProps["fit"], BadgeTone> = { strong: "success", good: "info", stretch: "warning" };
 
 const issueLabel = (url: string) => {
   const m = url.match(/github\.com\/[^/]+\/([^/]+)\/issues\/(\d+)/);
@@ -33,7 +35,9 @@ export function ProjectCard(p: ProjectCardProps) {
           )}
           <SampleChip show={p.is_seed} />
         </h3>
-        <span className={`fit-pill fit-${p.fit}`}>{FIT_LABEL[p.fit]}</span>
+        <Badge tone={FIT_TONE[p.fit]} size="sm">
+          {FIT_LABEL[p.fit]}
+        </Badge>
       </div>
       <p className="discover-why">
         <strong>Why:</strong> {p.why}
@@ -65,7 +69,7 @@ export function ProjectCard(p: ProjectCardProps) {
         </ul>
       )}
       {gfiUrl && (
-        <a className="discover-more" href={gfiUrl} target="_blank" rel="noreferrer">
+        <a className="link-btn discover-more" href={gfiUrl} target="_blank" rel="noreferrer">
           {p.issue_urls.length > 0 ? `${p.issue_urls.length} good first issues →` : "Good first issues →"}
         </a>
       )}

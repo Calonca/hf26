@@ -2,6 +2,12 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { getMatches } from "@/server/actions/ai";
+import { Alert } from "@/components/arc/alert/alert";
+import { Button } from "@/components/arc/button/button";
+import { EmptyState } from "@/components/arc/empty-state/empty-state";
+import { Input } from "@/components/arc/input/input";
+import { Select } from "@/components/arc/select/select";
+import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import { ProjectCard } from "@/components/ProjectCard";
 import { SampleChip } from "@/components/SampleChip";
 
@@ -29,28 +35,20 @@ export function DiscoverClient({ projects }: { projects: Meta[] }) {
       >
         <h1>Find a project that fits you</h1>
         <div className="discover-row">
-          <div className="discover-field discover-skills">
-            <label htmlFor="skills">Tell us what you know</label>
-            <input id="skills" type="text" value={skills} onChange={(e) => setSkills(e.target.value)} required />
+          <div className="discover-skills">
+            <Input id="skills" label="Tell us what you know" value={skills} onChange={(e) => setSkills(e.target.value)} required />
           </div>
-          <div className="discover-field discover-time">
-            <label htmlFor="time">Time per week</label>
-            <select id="time" value={hours} onChange={(e) => setHours(e.target.value)}>
-              {HOURS.map((h) => (
-                <option key={h} value={h}>
-                  {h}
-                </option>
-              ))}
-            </select>
+          <div className="discover-time">
+            <Select label="Time per week" value={hours} onValueChange={setHours} options={HOURS.map((h) => ({ value: h, label: h }))} />
           </div>
           <div className="discover-actions">
-            <button type="submit" className="btn btn-primary" disabled={run.isPending}>
-              {run.isPending ? "Matching…" : "Match me"}
-            </button>
+            <Button type="submit" loading={run.isPending}>
+              Match me
+            </Button>
             {res?.ok && (
-              <button type="button" className="btn btn-ghost" disabled={run.isPending} onClick={() => run.mutate(true)}>
+              <Button variant="ghost" disabled={run.isPending} onClick={() => run.mutate(true)}>
                 Regenerate
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -67,28 +65,28 @@ export function DiscoverClient({ projects }: { projects: Meta[] }) {
         <div className="discover-grid" aria-busy="true" aria-label="Gemma is ranking projects">
           {[0, 1, 2].map((i) => (
             <div key={i} className="card discover-card">
-              <div className="skeleton" style={{ height: 18, width: "50%" }} />
-              <div className="skeleton" style={{ height: 14, width: "90%" }} />
-              <div className="skeleton" style={{ height: 14, width: "70%" }} />
-              <div className="skeleton" style={{ height: 14, width: "60%" }} />
+              <Skeleton label="Gemma is ranking projects" lines={4} />
             </div>
           ))}
         </div>
       )}
       {run.error && (
-        <div className="error-box" role="alert">
+        <Alert tone="danger" title="Something went wrong" role="alert">
           {String(run.error)}
-        </div>
+        </Alert>
       )}
       {!run.isPending && res && !res.ok && (
-        <div className="error-box" role="alert">
-          <strong>{res.error.code === "model_unavailable" ? "Model unavailable" : "Invalid model output"}</strong>
-          <p>{res.error.message}</p>
-        </div>
+        <Alert tone="warning" role="alert" title={res.error.code === "model_unavailable" ? "Model unavailable" : "Invalid model output"}>
+          {res.error.message}
+        </Alert>
       )}
       {!run.isPending && res?.ok && (
         <>
-          {res.data.length === 0 && <p className="muted">No matching projects in the index.</p>}
+          {res.data.length === 0 && (
+            <div className="card">
+              <EmptyState title="No matches" description="No indexed project fits these skills yet. Try broader words." />
+            </div>
+          )}
           <div className="discover-grid">
             {res.data.map((m) => {
               const p = meta.get(m.project);

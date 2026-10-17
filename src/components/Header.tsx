@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { Badge } from "@/components/arc/badge/badge";
+import AiQueue from "./AiQueue";
 import NavLinks from "./NavLinks";
+import { ThemeToggle } from "./ThemeToggle";
 
 /** "gemma4:e4b" → "Gemma 4 E4B · local" */
 export function modelLabel(model = process.env.OLLAMA_MODEL ?? "gemma4:e4b") {
@@ -13,7 +16,7 @@ export default function Header() {
     <header className="site-header">
       <div className="site-header-inner">
         <Link href="/" className="brand">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5EEAD4" strokeWidth="2" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <circle cx="6" cy="6" r="3" />
             <circle cx="18" cy="6" r="3" />
             <circle cx="12" cy="18" r="3" />
@@ -22,7 +25,13 @@ export default function Header() {
           <span>Vouch Explorer</span>
         </Link>
         <NavLinks />
-        <span className="model-badge" title="Open-weight model, runs locally">{modelLabel()}</span>
+        <div className="header-tools">
+          <AiQueue />
+          <Badge tone="info" className="mono" title="Open-weight model, runs locally">
+            {modelLabel()}
+          </Badge>
+          <ThemeToggle />
+        </div>
       </div>
     </header>
   );

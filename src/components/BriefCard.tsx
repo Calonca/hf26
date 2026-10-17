@@ -1,6 +1,11 @@
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getBrief } from "@/server/actions/ai";
+import { useEffect, useRef } from "react";
+import { Alert } from "@/components/arc/alert/alert";
+import { Badge } from "@/components/arc/badge/badge";
+import { Button } from "@/components/arc/button/button";
+import { Skeleton } from "@/components/arc/skeleton/skeleton";
+import type { AiResult, Brief } from "@/server/ai/tasks";
 import { EvidenceList } from "./EvidenceList";
 
 /** "gemma4:e4b" → "Gemma 4" */
@@ -9,12 +14,25 @@ function modelName(model: string) {
   return m ? `Gemma ${m[1]}` : model;
 }
 
+/** Aborting `signal` (e.g. leaving the profile) stops generation on the server. */
+async function fetchBrief(login: string, force: boolean, signal?: AbortSignal): Promise<AiResult<Brief>> {
+  const res = await fetch(`/api/ai/brief?login=${encodeURIComponent(login)}${force ? "&force=1" : ""}`, { signal });
+  return res.json();
+}
+
 export function BriefCard({ login }: { login: string }) {
   const qc = useQueryClient();
   const key = ["brief", login.toLowerCase()];
-  const q = useQuery({ queryKey: key, queryFn: () => getBrief(login, false), staleTime: Infinity });
+  // TanStack Query aborts `signal` when the last observer unmounts, i.e. when the profile closes.
+  const q = useQuery({ queryKey: key, queryFn: ({ signal }) => fetchBrief(login, false, signal), staleTime: Infinity });
+  const regenAbort = useRef<AbortController | null>(null);
+  useEffect(() => () => regenAbort.current?.abort(), []);
   const regen = useMutation({
-    mutationFn: () => getBrief(login, true),
+    mutationFn: () => {
+      regenAbort.current?.abort();
+      regenAbort.current = new AbortController();
+      return fetchBrief(login, true, regenAbort.current.signal);
+    },
     onSuccess: (res) => qc.setQueryData(key, res),
   });
   const res = regen.isPending ? undefined : q.data;
@@ -25,37 +43,52 @@ export function BriefCard({ login }: { login: string }) {
       <div className="brief-head">
         <h2 id="brief-title">Contribution brief</h2>
         <div className="brief-actions">
-          <span className="brief-badge mono">
+          <Badge tone="info" size="sm">
             written by {res && res.ok ? modelName(res.model) : "Gemma 4"} · runs locally
-          </span>
-          <button type="button" className="btn btn-ghost" onClick={() => regen.mutate()} disabled={loading}>
-            {regen.isPending ? "Regenerating…" : "Regenerate"}
-          </button>
+          </Badge>
+          <Button variant="ghost" size="sm" onClick={() => regen.mutate()} disabled={loading} loading={regen.isPending}>
+            Regenerate
+          </Button>
         </div>
       </div>
 
       {loading && (
-        <div role="status" aria-label="Gemma is writing the brief">
-          <div className="skeleton" style={{ height: 16, width: "92%" }} />
-          <div className="skeleton" style={{ height: 16, width: "80%", marginTop: 8 }} />
-          <div className="skeleton" style={{ height: 16, width: "64%", marginTop: 8 }} />
+        <div className="stack">
+          <Skeleton label="Gemma is writing the brief" lines={3} />
           <p className="muted small">Gemma is reading public activity…</p>
         </div>
       )}
       {!loading && q.error && (
-        <div className="error-box" role="alert">
-          Could not load brief: {String(q.error)}
-        </div>
+        <Alert tone="danger" title="Could not load brief" role="alert">
+          {String(q.error)}
+        </Alert>
       )}
       {!loading && res && !res.ok && (
-        <div className="error-box" role="alert">
-          <strong>{res.error.code === "model_unavailable" ? "Model unavailable" : res.error.code === "not_found" ? "Not found" : "Invalid model output"}</strong>
-          <p>{res.error.message}</p>
-        </div>
+        <Alert
+          tone={res.error.code === "cancelled" ? "info" : "warning"}
+          role="alert"
+          title={
+            res.error.code === "model_unavailable"
+              ? "Model unavailable"
+              : res.error.code === "not_found"
+                ? "Not found"
+                : res.error.code === "cancelled"
+                  ? "Cancelled"
+                  : "Invalid model output"
+          }
+        >
+          {res.error.message}
+        </Alert>
       )}
       {!loading && res && res.ok && (
         <>
           <p className="brief-summary">{res.data.summary}</p>
+          {res.data.vouch_lists && (
+            <div className={`brief-block brief-vouch${/denounc/i.test(res.data.vouch_lists) ? " is-warn" : ""}`}>
+              <h3>What maintainers&apos; vouch lists say</h3>
+              <p>{res.data.vouch_lists}</p>
+            </div>
+          )}
           <div className="brief-block">
             <h3>Evidence</h3>
             <EvidenceList items={res.data.strengths} />
@@ -73,9 +106,9 @@ export function BriefCard({ login }: { login: string }) {
           {res.data.areas.length > 0 && (
             <div className="brief-areas" aria-label="Areas">
               {res.data.areas.map((a) => (
-                <span key={a} className="chip">
+                <Badge key={a} tone="neutral" size="sm">
                   {a}
-                </span>
+                </Badge>
               ))}
             </div>
           )}

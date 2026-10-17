@@ -45,6 +45,7 @@ next-env.d.ts
 .env
 data/*.db*
 .claude/
+!.env.example
 
 # agent skills (local tooling, not project code)
 .agents/

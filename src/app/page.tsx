@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { Badge } from "@/components/arc/badge/badge";
+import { Button } from "@/components/arc/button/button";
+import { EmptyState } from "@/components/arc/empty-state/empty-state";
+import { Input } from "@/components/arc/input/input";
 import SampleChip from "@/components/SampleChip";
 import TrustGraph from "@/components/TrustGraph";
 import { exploreSearch, indexStats } from "@/server/actions/explore";
@@ -26,9 +30,18 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
           visible.
         </p>
         <form className="search-form" action="/" method="get" role="search">
-          <label htmlFor="q" className="sr-only">GitHub handle or project</label>
-          <input id="q" name="q" defaultValue={q ? (result?.kind === "user" ? `@${q}` : q) : ""} placeholder="Search a GitHub handle or owner/repo" autoComplete="off" />
-          <button className="btn btn-primary" type="submit">Map trust</button>
+          <Input
+            id="q"
+            name="q"
+            label="GitHub handle or project"
+            defaultValue={q ? (result?.kind === "user" ? `@${q}` : q) : ""}
+            placeholder="@handle or owner/repo"
+            autoComplete="off"
+          />
+          <Button type="submit">Map trust</Button>
+          <Button type="submit" variant="secondary" formAction="/profile">
+            Show profile
+          </Button>
         </form>
         {stats.suggestions.length > 0 && (
           <div className="row small muted">
@@ -36,7 +49,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
             {stats.suggestions.slice(0, 6).map((s) => (
               <Link key={s} className="mono" href={`/?q=${encodeURIComponent(s)}`}>@{s}</Link>
             ))}
-            <Link className="mono" href="/?q=sample-org/termlight">sample-org/termlight</Link>
+            <Link className="mono" href="/?q=Calonca/hf26">Calonca/hf26</Link>
           </div>
         )}
       </section>
@@ -80,7 +93,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                           {e.origin === "shared" && <span className="chip">Shared index</span>}
                         </td>
                         <td>
-                          <span className={`chip ${e.status === "vouched" ? "chip-ok" : "chip-warn"}`}>{e.status === "vouched" ? "Vouched" : "Denounced"}</span>
+                          <Badge tone={e.status === "vouched" ? "success" : "danger"} size="sm">{e.status === "vouched" ? "Vouched" : "Denounced"}</Badge>
                         </td>
                         <td>{e.voucher ? `@${e.voucher}` : <span className="muted">unknown</span>}</td>
                         <td className="muted">{e.note ?? ""}</td>
@@ -91,32 +104,17 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
               </div>
             </>
           ) : (
-            <div className="empty">
+            <div className="card">
               {q ? (
-                <>No vouch list entries found for <span className="mono">{q}</span> in the index.</>
+                <EmptyState title="Not in any vouch list" description={`No VOUCHED.td entries found for ${q} in the index.`} />
               ) : (
-                <>The index is empty. Run <span className="mono">npm run db:seed</span> and <span className="mono">npm run crawl</span>.</>
+                <EmptyState title="The index is empty" description="Run npm run db:seed and npm run crawl to fill it." />
               )}
             </div>
           )}
         </section>
 
-        <aside className="stack" aria-label="Index">
-          <section className="card">
-            <h2 className="card-title">Index</h2>
-            <div className="stat-grid">
-              <div className="stat"><b>{fmt(stats.projects)}</b><span>projects with VOUCHED.td</span></div>
-              <div className="stat"><b>{fmt(stats.vouched)}</b><span>vouched contributors</span></div>
-              <div className="stat"><b>{fmt(stats.denounced)}</b><span>denounced</span></div>
-              <div className="stat"><b>{fmt(stats.events)}</b><span>vouch events</span></div>
-            </div>
-            {stats.shared && (
-              <p className="muted small">
-                Shared index: {fmt(stats.shared.projects)} projects · {fmt(stats.shared.vouched)} vouched ·{" "}
-                {fmt(stats.shared.denounced)} denounced
-              </p>
-            )}
-          </section>
+        <aside className="stack" aria-label="Recent vouches and index">
           <section className="card">
             <h2 className="card-title">Recent vouches</h2>
             {stats.recent.length === 0 ? (
@@ -140,6 +138,21 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
             )}
             {result?.kind === "user" && (
               <Link className="strong-link" href={`/u/${encodeURIComponent(result.q)}`}>Open @{result.q}&apos;s profile →</Link>
+            )}
+          </section>
+          <section className="card">
+            <h2 className="card-title">Index</h2>
+            <div className="stat-grid">
+              <div className="stat"><b>{fmt(stats.projects)}</b><span>projects with VOUCHED.td</span></div>
+              <div className="stat"><b>{fmt(stats.vouched)}</b><span>vouched contributors</span></div>
+              <div className="stat"><b>{fmt(stats.denounced)}</b><span>denounced</span></div>
+              <div className="stat"><b>{fmt(stats.events)}</b><span>vouch events</span></div>
+            </div>
+            {stats.shared && (
+              <p className="muted small">
+                Shared index: {fmt(stats.shared.projects)} projects · {fmt(stats.shared.vouched)} vouched ·{" "}
+                {fmt(stats.shared.denounced)} denounced
+              </p>
             )}
           </section>
         </aside>

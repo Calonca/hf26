@@ -10,7 +10,7 @@ export default async function RequestsPage({ searchParams }: { searchParams: Pro
   const { project: wanted } = await searchParams;
   const projects = await listRequestProjects();
   const current =
-    projects.find((p) => p.full_name === wanted) ?? projects.find((p) => p.is_seed === 1) ?? projects[0] ?? null;
+    projects.find((p) => p.full_name === wanted) ?? projects[0] ?? null;
   const requests = current ? await listRequests(current.id) : [];
   const me = getCurrentUser();
 
@@ -43,7 +43,7 @@ export default async function RequestsPage({ searchParams }: { searchParams: Pro
             ))}
           </nav>
           {current && (
-            <RequestList key={current.id} initial={requests} project={current.full_name} isSeed={current.is_seed === 1} />
+            <RequestList key={current.id} initial={requests} project={current.full_name} isSeed={requests.some((r) => r.is_seed === 1)} />
           )}
         </>
       )}

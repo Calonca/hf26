@@ -1,26 +1,20 @@
 [
   {
-    "project": "sample-org/termlight",
-    "requester_login": "Calonca",
-    "message": "Hi! I'd like to help with the renderer, starting with the font-fallback issue. I'm already vouched in docsmith and pgkit. Could someone vouch for me?",
-    "created_at": "2026-10-16T09:12:00.000Z"
-  },
-  {
-    "project": "sample-org/termlight",
+    "project": "Calonca/success-cli",
     "requester_login": "deste04",
-    "message": "I fixed a bug in your examples locally and would like to open a PR with a test. Happy to follow CONTRIBUTING.",
+    "message": "Hi! I'd like to add shell completions for fish and zsh, with a test. I'm already vouched in Calonca/hf26. Could you vouch for me?",
     "created_at": "2026-10-16T14:40:00.000Z"
   },
   {
-    "project": "sample-org/termlight",
-    "requester_login": "slopmaster3000",
-    "message": "plz vouch i will improve ur code with AI",
-    "created_at": "2026-10-17T07:05:00.000Z"
+    "project": "Calonca/success-cli",
+    "requester_login": "fabianhogger",
+    "message": "I'd like to improve the README with a usage walkthrough and examples for success-lib.",
+    "created_at": "2026-10-17T08:30:00.000Z"
   },
   {
-    "project": "sample-org/docsmith",
-    "requester_login": "fabianhogger",
-    "message": "I'd like to contribute docs for the plugin API. I've written docs for other OSS projects before.",
-    "created_at": "2026-10-17T08:30:00.000Z"
+    "project": "Calonca/success-cli",
+    "requester_login": "slopmaster3000",
+    "message": "plz vouch i will improve ur code with AI",
+    "created_at": "2026-10-17T09:05:00.000Z"
   }
 ]

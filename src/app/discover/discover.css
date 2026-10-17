@@ -1,33 +1,22 @@
-/* Discover page (matches design board Discover.dc.html) */
-.discover-form { display: flex; flex-direction: column; gap: 14px; padding: 24px; }
-.discover-form h1 { margin: 0; font-size: 26px; font-weight: 700; }
-.discover-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
+/* Discover page */
+.discover-form { display: flex; flex-direction: column; gap: var(--space-4); }
+.discover-form h1 { margin: 0; font-size: var(--text-3xl); line-height: var(--leading-display); }
+.discover-row { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-end; }
 .discover-row .discover-skills { flex: 2 1 360px; min-width: 0; }
 .discover-row .discover-time { flex: 1 1 180px; min-width: 0; }
-.discover-field { display: flex; flex-direction: column; gap: 6px; }
-.discover-field label { font-size: 14px; font-weight: 600; }
-.discover-field input,
-.discover-field select {
-  height: 48px; box-sizing: border-box; padding: 0 14px; border: 1px solid #C3CAD4; border-radius: 8px;
-  font: inherit; font-size: 15px; background: var(--surface, #fff); color: var(--ink, #0E1726); width: 100%;
-}
-.discover-actions { display: flex; flex-wrap: wrap; gap: 10px; }
-.discover-actions .btn { height: 48px; padding: 0 22px; }
-.discover-results-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 24px 0 16px; }
-.discover-results-head h2 { margin: 0; font-size: 18px; font-weight: 600; }
-.discover-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.discover-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.discover-results-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); margin: var(--space-8) 0 var(--space-4); }
+.discover-results-head h2 { margin: 0; font-size: var(--text-lg); }
+.discover-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-5); }
 @media (max-width: 420px) { .discover-grid { grid-template-columns: 1fr; } }
-.discover-card { display: flex; flex-direction: column; gap: 12px; padding: 20px; }
-.discover-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-.discover-card-head h3 { margin: 0; font-family: var(--font-mono, 'IBM Plex Mono', monospace); font-size: 16px; font-weight: 500; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.discover-card-head h3 a { color: var(--ink, #0E1726); text-decoration: none; }
+.discover-card { display: flex; flex-direction: column; gap: var(--space-3); }
+.discover-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-2); }
+.discover-card-head h3 { margin: 0; font-family: var(--font-mono); font-size: var(--text-base); font-weight: 500; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.discover-card-head h3 a { text-decoration: none; }
 .discover-card-head h3 a:hover { text-decoration: underline; }
-.fit-pill { font-size: 12px; padding: 4px 8px; border-radius: 999px; white-space: nowrap; }
-.fit-pill.fit-strong, .fit-pill.fit-good { background: #E1F2EF; color: #0B4F4A; }
-.fit-pill.fit-stretch { background: #FBEBDD; color: #8A3D06; }
-.discover-why { margin: 0; font-size: 14px; line-height: 1.5; color: #2D3748; }
-.discover-howto { font-size: 13px; color: var(--muted, #4A5568); display: flex; flex-direction: column; gap: 4px; }
-.discover-howto strong { color: var(--ink, #0E1726); }
-.discover-issues { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
-.discover-more { font-size: 14px; font-weight: 600; }
-.discover-footer { margin: 20px 0 0; font-size: 13px; color: var(--muted, #4A5568); }
+.discover-why { margin: 0; line-height: 1.5; }
+.discover-howto { font-size: var(--text-xs); color: var(--text-secondary); display: flex; flex-direction: column; gap: var(--space-1); background: var(--surface-muted); border-radius: var(--radius-control); padding: var(--space-3) var(--space-4); }
+.discover-howto strong { color: var(--foreground); font-weight: 500; }
+.discover-issues { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--text-xs); }
+.discover-more { align-self: flex-start; margin-top: auto; }
+.discover-footer { margin: var(--space-5) 0 0; font-size: var(--text-xs); color: var(--text-secondary); }
