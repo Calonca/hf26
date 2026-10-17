@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import Link from "next/link";
 import { Badge } from "@/components/arc/badge/badge";
 import AiQueue from "./AiQueue";
@@ -25,9 +24,7 @@ export default function Header() {
           </svg>
           <span>Vouch Explorer</span>
         </Link>
-        <Suspense fallback={null}>
-          <NavLinks />
-        </Suspense>
+        <NavLinks />
         <div className="header-tools">
           <AiQueue />
           <Badge tone="info" className="mono" title="Open-weight model, runs locally">
