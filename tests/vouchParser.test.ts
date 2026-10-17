@@ -35,4 +35,12 @@ describe("parseVouchFile", () => {
     const r = parseVouchFile("# c\n  # indented comment\n@carol\nnot/valid\ncarol\n-\n");
     expect(r.map((e) => e.login)).toEqual(["carol"]);
   });
+
+  it("accepts `+ handle` and `- handle` with a space (atuinsh/atuin style)", () => {
+    const r = parseVouchFile("+ 0x4A6F\n- spammer bad PRs\n");
+    expect(r.map((e) => [e.login, e.status, e.note])).toEqual([
+      ["0x4A6F", "vouched", null],
+      ["spammer", "denounced", "bad PRs"],
+    ]);
+  });
 });

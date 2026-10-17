@@ -1,5 +1,5 @@
 // Find public VOUCHED.td files via GitHub code search and index them.
-// Usage: npm run crawl [-- --limit 300]
+// Usage: npm run crawl [-- --limit 300] [--force]
 import "dotenv/config";
 import { projectsRepo } from "../src/db/repo";
 import { contributingUrl, getFile, getRepoMeta, goodFirstIssues, octokit, sleep, withRetry } from "../src/server/github";
@@ -7,6 +7,7 @@ import { indexVouchFile } from "../src/server/indexer";
 
 const limitArg = process.argv.indexOf("--limit");
 const LIMIT = limitArg > 0 ? Number(process.argv[limitArg + 1]) : 300;
+const FORCE = process.argv.includes("--force"); // re-parse even if the file SHA is unchanged
 
 async function searchVouchFiles() {
   const hits = new Map<string, string>(); // full_name → path
@@ -48,7 +49,7 @@ async function indexOne(fullName: string, path: string) {
   } catch {
     /* issues disabled */
   }
-  if (existing?.vouch_file_sha === file.sha) return { skipped: true, entries: 0, events: 0 };
+  if (!FORCE && existing?.vouch_file_sha === file.sha) return { skipped: true, entries: 0, events: 0 };
   return { skipped: false, ...indexVouchFile(project, file.text, { sha: file.sha, path, source: "crawl" }) };
 }
 
