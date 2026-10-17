@@ -10,9 +10,9 @@ import { generate, SERVER_MODEL } from "./ollamaRunner";
 import { enqueue } from "./queue";
 
 export const PROMPT_VERSIONS = {
-  brief: "brief-v3",
-  triage: "triage-v3",
-  discover: "discover-v1",
+  brief: "brief-v4",
+  triage: "triage-v4",
+  discover: "discover-v2",
 } as const;
 
 export const RULES =
@@ -60,7 +60,10 @@ export function cachedResult<Out>(p: Prepared<Out>, model: string): AiResult<Out
 export function complete<Out>(p: Prepared<Out>, raw: string, model: string): AiResult<Out> {
   let json: unknown;
   try {
-    json = JSON.parse(raw);
+    // Tolerate JSON wrapped in a ```json fence or surrounded by a stray line.
+    const start = raw.indexOf("{");
+    const end = raw.lastIndexOf("}");
+    json = JSON.parse(start >= 0 && end > start ? raw.slice(start, end + 1) : raw);
   } catch {
     return { ok: false, error: { code: "invalid_output", message: "Model output was not valid JSON." } };
   }
@@ -119,14 +122,22 @@ async function safeContributions(login: string): Promise<Contribution[]> {
 
 // ---------- 1. Contribution brief ----------
 
+// The model cites short ids ("c3") rather than copying URLs, which small models garble;
+// postprocess maps ids back to the real URLs, so every evidence link is grounded by construction.
 const BriefSchema = z.object({
   summary: z.string(),
-  strengths: z.array(z.object({ text: z.string(), evidence_url: z.string() })),
-  gaps: z.array(z.string()),
-  areas: z.array(z.string()),
+  strengths: z.array(z.object({ text: z.string(), evidence_id: z.string() })).max(4),
+  gaps: z.array(z.string()).max(4),
+  areas: z.array(z.string()).max(8),
 });
 /** vouch_lists is computed from the DB, not written by the model: small models drop denouncements. */
-export type Brief = z.infer<typeof BriefSchema> & { vouch_lists: string };
+export type Brief = {
+  summary: string;
+  vouch_lists: string;
+  strengths: { text: string; evidence_url: string }[];
+  gaps: string[];
+  areas: string[];
+};
 
 function describeVouchLists(s: { vouched_in: number; denounced_in: number; denounce_notes: (string | null)[] }) {
   const projects = (n: number) => `${n} indexed project${n === 1 ? "" : "s"}`;
@@ -159,10 +170,10 @@ export async function prepareBrief(login: string): Promise<Prepared<Brief>> {
   const input = {
     login,
     vouch_summary,
-    contributions: contributions.map(({ title, repo, kind, state, url }) => ({ title, repo, kind, state, url })),
+    contributions: contributions.map(({ title, repo, kind, state }, i) => ({ id: `c${i + 1}`, title, repo, kind, state })),
     vouch_entries: vouches,
   };
-  const urls = new Set(input.contributions.map((c) => c.url));
+  const urlOf = new Map(contributions.map((c, i) => [`c${i + 1}`, c.url]));
   return {
     subjectType: "user",
     subjectKey: login.toLowerCase(),
@@ -172,15 +183,18 @@ export async function prepareBrief(login: string): Promise<Prepared<Brief>> {
     system: sys(
       "You write short, factual contribution briefs about open-source contributors for maintainers. " +
       "summary: 2-3 sentences describing what the person works on. " +
-      "If vouch_summary.denounced_in > 0, the summary must state that maintainers denounced them and quote the notes, without adding judgement. strengths: up to 4 items, each citing one evidence_url copied exactly from the input contributions. " +
+      "If vouch_summary.denounced_in > 0, the summary must state that maintainers denounced them and quote the notes, without adding judgement. strengths: up to 4 items, each citing the id of one input contribution as evidence_id (e.g. \"c1\"). " +
       "gaps: what the data does not show (e.g. no reviews, no merged PRs). areas: short lowercase topic tags like docs, cli, tests.",
     ),
-    prompt: `Data for GitHub user ${login}:\n${JSON.stringify(input, null, 1)}`,
+    prompt: `Data for GitHub user ${login}:\n${JSON.stringify(input)}`,
     postprocess: (b: z.infer<typeof BriefSchema>): Brief => ({
       ...b,
       vouch_lists: describeVouchLists(vouch_summary),
-      strengths: b.strengths.filter((s) => urls.has(s.evidence_url)),
-      areas: b.areas.slice(0, 8),
+      strengths: b.strengths.flatMap((s) => {
+        const url = urlOf.get(s.evidence_id.trim().toLowerCase());
+        return url ? [{ text: s.text, evidence_url: url }] : [];
+      }),
+      areas: [...new Set(b.areas.map((a) => a.toLowerCase()))],
     }),
   };
 }
@@ -191,10 +205,10 @@ export const contributionBrief = async (login: string, force = false, signal?: A
 // ---------- 2. Request triage ----------
 
 const TriageSchema = z.object({
-  checks: z.array(z.object({ label: z.string(), ok: z.boolean(), evidence_url: z.string().nullable() })),
+  checks: z.array(z.object({ label: z.string(), ok: z.boolean(), evidence_id: z.string().nullable() })).max(5),
   draft_reply: z.string(),
 });
-export type Triage = z.infer<typeof TriageSchema>;
+export type Triage = { checks: { label: string; ok: boolean; evidence_url: string | null }[]; draft_reply: string };
 
 /** `brief` is the requester's cached contribution brief, if one exists (never generated here). */
 export async function prepareTriage(requestId: number, model: string): Promise<Prepared<Triage> | null> {
@@ -215,14 +229,16 @@ export async function prepareTriage(requestId: number, model: string): Promise<P
     requester: req.requester_login,
     message: req.message,
     status_in_this_repo_vouched_file: here ? { status: here.status, note: here.note } : "not listed",
-    requester_brief: brief.ok ? brief.data : null,
+    requester_brief: brief.ok
+      ? { ...brief.data, strengths: brief.data.strengths.map((s, i) => ({ id: `b${i + 1}`, text: s.text })) }
+      : null,
     vouch_entries_elsewhere: elsewhere,
-    activity_in_this_repo: inRepo.map(({ title, kind, state, url }) => ({ title, kind, state, url })),
+    activity_in_this_repo: inRepo.map(({ title, kind, state }, i) => ({ id: `a${i + 1}`, title, kind, state })),
     has_activity_in_this_repo: inRepo.length > 0,
   };
-  const urls = new Set<string>([
-    ...contributions.map((c) => c.url),
-    ...(brief.ok ? brief.data.strengths.map((s) => s.evidence_url) : []),
+  const urlOf = new Map<string, string>([
+    ...inRepo.map((c, i) => [`a${i + 1}`, c.url] as const),
+    ...(brief.ok ? brief.data.strengths.map((s, i) => [`b${i + 1}`, s.evidence_url] as const) : []),
   ]);
   return {
     subjectType: "request",
@@ -233,11 +249,15 @@ export async function prepareTriage(requestId: number, model: string): Promise<P
     system: sys(
       "You help a maintainer read a vouch request. checks: 3-5 factual yes/no observations, e.g. 'Has prior activity in this repo', " +
       "'Vouched in other projects', 'Message names a specific planned contribution' (ok=false if vague), 'Not denounced in this repo or elsewhere' (ok=false if status_in_this_repo_vouched_file or any entry is denounced; quote the note). ok=false always means a concern or missing evidence. " +
-      "evidence_url must be copied exactly from the input or null. draft_reply: a polite 1-3 sentence reply the maintainer can edit; it must not promise or refuse a vouch.",
+      "evidence_id: the id of one input activity (a1...) or brief strength (b1...), or null. draft_reply: a polite 1-3 sentence reply the maintainer can edit; it must not promise or refuse a vouch.",
     ),
-    prompt: `Vouch request data:\n${JSON.stringify(input, null, 1)}`,
-    postprocess: (t: Triage) => ({
-      checks: t.checks.map((c) => ({ ...c, evidence_url: c.evidence_url && urls.has(c.evidence_url) ? c.evidence_url : null })),
+    prompt: `Vouch request data:\n${JSON.stringify(input)}`,
+    postprocess: (t: z.infer<typeof TriageSchema>): Triage => ({
+      checks: t.checks.map(({ label, ok, evidence_id }) => ({
+        label,
+        ok,
+        evidence_url: (evidence_id && urlOf.get(evidence_id.trim().toLowerCase())) || null,
+      })),
       draft_reply: t.draft_reply,
     }),
   };
@@ -258,10 +278,10 @@ const MatchSchema = z.object({
   project: z.string(),
   fit: z.enum(FIT),
   why: z.string(),
-  issue_urls: z.array(z.string()),
+  issue_ids: z.array(z.string()).max(3),
 });
-const DiscoverSchema = z.object({ matches: z.array(MatchSchema) });
-export type Match = z.infer<typeof MatchSchema>;
+const DiscoverSchema = z.object({ matches: z.array(MatchSchema).max(5) });
+export type Match = { project: string; fit: (typeof FIT)[number]; why: string; issue_urls: string[] };
 
 const MAX_CANDIDATES = 25;
 
@@ -289,9 +309,13 @@ export async function prepareDiscover(skills: string, hoursPerWeek: string): Pro
     description: p.description,
     language: p.language,
     topics: JSON.parse(p.topics || "[]") as string[],
-    good_first_issues: projectsRepo.issuesFor(p.id).map((i) => ({ title: i.title, url: i.url })),
+    issues: projectsRepo.issuesFor(p.id),
   }));
-  const input = { skills: normalized, hours_per_week: hoursPerWeek, projects };
+  const urlOf = new Map<string, { project: string; url: string }>(
+    projects.flatMap((p) => p.issues.map((i) => [`i${i.id}`, { project: p.project, url: i.url }] as const)),
+  );
+  const forModel = projects.map(({ issues, ...p }) => ({ ...p, good_first_issues: issues.map((i) => ({ id: `i${i.id}`, title: i.title })) }));
+  const input = { skills: normalized, hours_per_week: hoursPerWeek, projects: forModel };
   const byName = new Map(projects.map((p) => [p.project.toLowerCase(), p]));
   return {
     subjectType: "discover",
@@ -302,9 +326,9 @@ export async function prepareDiscover(skills: string, hoursPerWeek: string): Pro
     system: sys(
       "You match a contributor's skills and available time to open-source projects that use Vouch. Return the top 5 matches as {matches:[...]}. " +
       "project must be copied exactly from the input. fit is one word: strong, good or stretch. why: one sentence grounded in the project data. " +
-      "issue_urls: only good_first_issues urls of that project from the input (may be empty).",
+      "issue_ids: up to 3 ids of that project's good_first_issues from the input (may be empty).",
     ),
-    prompt: `Contributor and indexed projects:\n${JSON.stringify(input, null, 1)}`,
+    prompt: `Contributor and indexed projects:\n${JSON.stringify(input)}`,
     postprocess: ({ matches }: z.infer<typeof DiscoverSchema>) => {
       const seen = new Set<string>();
       const out: Match[] = [];
@@ -312,8 +336,11 @@ export async function prepareDiscover(skills: string, hoursPerWeek: string): Pro
         const p = byName.get(m.project.toLowerCase());
         if (!p || seen.has(p.project)) continue;
         seen.add(p.project);
-        const allowed = new Set(p.good_first_issues.map((i) => i.url));
-        out.push({ ...m, project: p.project, issue_urls: m.issue_urls.filter((u) => allowed.has(u)) });
+        const issue_urls = m.issue_ids.flatMap((id) => {
+          const hit = urlOf.get(id.trim().toLowerCase());
+          return hit && hit.project === p.project ? [hit.url] : [];
+        });
+        out.push({ project: p.project, fit: m.fit, why: m.why, issue_urls });
       }
       return out.slice(0, 5);
     },

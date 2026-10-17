@@ -55,6 +55,11 @@ describe("AI output handling", () => {
     expect(bad).toMatchObject({ ok: false, error: { code: "invalid_output" } });
   });
 
+  it("accepts JSON wrapped in a code fence, as small models often answer", () => {
+    const r = tasks.complete(prepared(), '```json\n{"strengths":[]}\n```', "fenced");
+    expect(r).toMatchObject({ ok: true, data: { strengths: [] } });
+  });
+
   it("serves from cache without the model, and reports model_unavailable otherwise", async () => {
     const hit = await tasks.runOnServer({ ...prepared() }, false);
     // cached under SERVER_MODEL? Only "m" was cached, so the server model misses → unreachable Ollama
