@@ -7,7 +7,7 @@ const { vouch_entries, vouch_events, users, projects } = schema;
 
 export type TrustEdge = {
   project: string;
-  project_id: number;
+  project_id: number | null; // null = from the shared index, no local project row
   is_seed: number;
   login: string;
   status: "vouched" | "denounced";
@@ -15,6 +15,7 @@ export type TrustEdge = {
   voucher: string | null; // null = unknown, never guessed
   occurred_at: string | null;
   commit_sha: string | null;
+  origin: "local" | "shared";
 };
 
 function edges(where: ReturnType<typeof and>): TrustEdge[] {
@@ -65,6 +66,7 @@ function edges(where: ReturnType<typeof and>): TrustEdge[] {
       voucher: ev?.voucher ?? null,
       occurred_at: ev?.occurred_at ?? null,
       commit_sha: ev?.commit_sha ?? null,
+      origin: "local",
     };
   });
 }

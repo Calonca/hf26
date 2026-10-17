@@ -33,6 +33,7 @@ Vouch Explorer indexes public `VOUCHED.td` files and connects them:
 - **TanStack Query** for loading and error states around slow model calls.
 - **Drizzle ORM** + **SQLite** (`better-sqlite3`), file at `./data/vouch.db`. All access goes through `src/db/repo/*`, and only `src/db/client.ts` knows the driver, so moving to libSQL/Turso or Postgres touches only that file and the Drizzle dialect.
 - **Octokit** for GitHub, with every response cached in the DB.
+- **Lakebase Postgres on Neon** (optional) as a read-only *shared* trust index, merged into Explore so the graph is not limited to this machine's crawl. Unset `NEON_DATABASE_URL` and the app runs on SQLite alone.
 - **Cytoscape.js** for the trust graph.
 - Plain CSS with variables, IBM Plex Sans/Mono.
 
@@ -54,6 +55,8 @@ npm run dev                         # http://localhost:3000
 **Pre-warming for a demo:** with the model running, open each demo screen once (Profile, each request on Requests, your Discover query). Results are cached in `ai_briefs`, so the same screens then load instantly even with the model stopped.
 
 `GITHUB_TOKEN` needs only public read access. If it is empty, the scripts fall back to `gh auth token`.
+
+`NEON_DATABASE_URL` is optional. Set it to a pooled, SELECT-only Lakebase Postgres connection string to merge a shared trust index into Explore; `GET /api/trust?q=` and `GET /api/stats` expose the merged data as JSON.
 
 Tests: `npm test` (vitest, VOUCHED.td parser checked against Vouch's `VOUCHED.example.td`).
 

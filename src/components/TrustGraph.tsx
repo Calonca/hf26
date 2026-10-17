@@ -20,12 +20,12 @@ export default function TrustGraph({ center, edges }: Props) {
       const cytoscape = (await import("cytoscape")).default;
       if (cancelled || !ref.current) return;
       const centerId = `${center.kind}:${center.id}`;
-      const nodes = new Map<string, { id: string; label: string; kind: string; seed: number }>();
-      nodes.set(centerId, { id: centerId, label: center.kind === "user" ? `@${center.id}` : center.id, kind: center.kind, seed: 0 });
+      const nodes = new Map<string, { id: string; label: string; kind: string; seed: number; origin: string }>();
+      nodes.set(centerId, { id: centerId, label: center.kind === "user" ? `@${center.id}` : center.id, kind: center.kind, seed: 0, origin: "local" });
       const els: import("cytoscape").ElementDefinition[] = [];
       edges.forEach((e, i) => {
         const other = center.kind === "user" ? { id: `project:${e.project}`, label: e.project, kind: "project" } : { id: `user:${e.login}`, label: e.login, kind: "user" };
-        if (!nodes.has(other.id)) nodes.set(other.id, { ...other, seed: e.is_seed });
+        if (!nodes.has(other.id)) nodes.set(other.id, { ...other, seed: e.is_seed, origin: e.origin });
         const [source, target] = center.kind === "user" ? [other.id, centerId] : [centerId, other.id];
         els.push({
           data: {
@@ -70,6 +70,9 @@ export default function TrustGraph({ center, edges }: Props) {
             },
           },
           { selector: 'node[kind = "user"]', style: { "background-color": "#FFFFFF", color: "#0E1726", "border-color": "#8A94A3" } },
+          // Status is carried by edge colour and voucher-known by edge dashes, so
+          // source gets its own channel: the node border.
+          { selector: 'node[origin = "shared"]', style: { "border-style": "dotted", "border-width": 2 } },
           {
             selector: "node[isCenter = 1]",
             style: {
@@ -120,12 +123,19 @@ export default function TrustGraph({ center, edges }: Props) {
         ref={ref}
         className="graph"
         role="img"
-        aria-label={`Trust graph for ${center.id}: ${edges.length} vouch list entries. The table below lists the same data.`}
+        aria-label={`Trust graph for ${center.id}: ${edges.length} vouch list entries${
+          edges.filter((e) => e.origin === "shared").length
+            ? `, ${edges.filter((e) => e.origin === "shared").length} from the shared index`
+            : ""
+        }. The table below lists the same data.`}
       />
       <div className="legend" aria-hidden="true">
         <span><i style={{ borderColor: TEAL }} />Vouched</span>
         <span><i style={{ borderColor: GREY, borderTopStyle: "dashed" }} />Unknown voucher</span>
         <span><i style={{ borderColor: ORANGE }} />Denounced</span>
+        {edges.some((e) => e.origin === "shared") && (
+          <span><i style={{ borderColor: GREY, borderStyle: "dotted" }} />From shared index</span>
+        )}
         <span>Click a node to explore it</span>
       </div>
     </div>
