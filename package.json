@@ -15,13 +15,13 @@
     "prewarm": "tsx scripts/prewarm.ts"
   },
   "dependencies": {
+    "@huggingface/transformers": "^4.3.1",
     "@octokit/rest": "^22.0.1",
     "@tanstack/react-query": "^5.104.3",
     "better-sqlite3": "^13.0.3",
     "cytoscape": "^3.34.4",
     "drizzle-orm": "^0.45.4",
     "next": "16.4.2",
-    "ollama": "^0.6.4",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "zod": "^4.6.7"
