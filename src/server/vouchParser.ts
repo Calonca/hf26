@@ -3,6 +3,7 @@
 //   - one handle per line, optionally `platform:handle` (default platform: github)
 //   - `-handle` / `-platform:handle` denounces
 //   - anything after the first whitespace is a free-text note
+//   - seen in the wild (atuinsh/atuin): `+ handle` / `- handle` with a space after the sign
 export type VouchEntry = {
   platform: string;
   login: string;
@@ -19,7 +20,9 @@ export function parseVouchFile(text: string): VouchEntry[] {
   text.split(/\r?\n/).forEach((raw, i) => {
     const line = raw.trim();
     if (!line || line.startsWith("#")) return;
-    const m = line.match(/^(\S+)(?:\s+(.*))?$/);
+    const signed = line.match(/^([+-])\s+(.*)$/);
+    const body = signed ? (signed[1] === "-" ? "-" : "") + signed[2] : line;
+    const m = body.match(/^(\S+)(?:\s+(.*))?$/);
     if (!m) return;
     let token = m[1];
     const note = m[2]?.trim() || null;

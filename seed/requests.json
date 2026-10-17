@@ -1,0 +1,26 @@
+[
+  {
+    "project": "sample-org/termlight",
+    "requester_login": "fallintoplace",
+    "message": "Hi! I've been contributing to ghostty and would like to help with the renderer here, starting with the font-fallback issue. Could someone vouch for me?",
+    "created_at": "2026-10-16T09:12:00.000Z"
+  },
+  {
+    "project": "sample-org/termlight",
+    "requester_login": "nmggithub",
+    "message": "I maintain a few terminal-adjacent tools and fixed a bug in your examples locally. Happy to send a PR once vouched.",
+    "created_at": "2026-10-16T14:40:00.000Z"
+  },
+  {
+    "project": "sample-org/termlight",
+    "requester_login": "slopmaster3000",
+    "message": "plz vouch i will improve ur code with AI",
+    "created_at": "2026-10-17T07:05:00.000Z"
+  },
+  {
+    "project": "sample-org/docsmith",
+    "requester_login": "bkircher",
+    "message": "I'd like to contribute docs for the plugin API. I've written docs for other OSS projects before.",
+    "created_at": "2026-10-17T08:30:00.000Z"
+  }
+]
