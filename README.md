@@ -16,7 +16,7 @@ Vouch Explorer indexes public `VOUCHED.td` files and connects them into one trus
 
 | Screen | What it does |
 | --- | --- |
-| **Explore** `/` | Trust graph for a GitHub user or an `owner/repo`. Solid teal edges mean vouched; denounced users are highlighted in orange on their own inner ring; dashed edges mean the voucher is unknown. Edge labels name the voucher, taken from git history and never guessed. Click a node to re-centre on it; fullscreen and fit buttons; a "Show profile" button. |
+| **Explore** `/` | Trust graph for a GitHub user or an `owner/repo`. Solid green edges mean vouched; denounced users are highlighted in red on their own inner ring; dashed edges mean the voucher is unknown. Edge labels name the voucher, taken from git history and never guessed. Click a node to re-centre on it; fullscreen and fit buttons; a "Show profile" button. |
 | **Profile** `/u/:handle` | Gemma's contribution brief, built from public PRs, reviews and issues, with every strength linked to evidence. A separate box states the vouch-list facts, generated from the database rather than by the model (for example "Denounced in 7 indexed projects with the note “Bad AI etiquette”"). Activity table per project. **Never a score.** |
 | **Requests** `/requests` | Maintainer inbox. Gemma runs factual checks (✓ or !) with evidence and drafts a reply you can edit. The human clicks **Vouch**, **Ask for more info** or **Denounce…** (Denounce asks for confirmation). Decisions are stored in the database only; nothing is written to GitHub. |
 | **Discover** `/discover` | Enter your skills and weekly hours. Gemma ranks indexed Vouch projects with a fit word (strong, good or stretch), a one-line reason and good-first issues. |
@@ -43,7 +43,7 @@ Vouch Explorer indexes public `VOUCHED.td` files and connects them into one trus
   - The schema is portable: JSON stored as text, ISO-8601 timestamps, and no views (`trust_edges` is a query in the repo layer).
 - **Octokit**: code search, repo metadata, file history and contributions. Every GitHub response is cached in the database.
 - **Ollama + Gemma 4**: JSON-schema output, zod validation, one first-in-first-out queue, and abortable requests.
-- **Cytoscape.js** for the graph, **plain CSS** with CSS variables (IBM Plex Sans and Mono), **vitest** for tests.
+- **Cytoscape.js** for the graph, **[Arc UI](https://uiarc.dev)** components and tokens (CSS modules, copied into `src/components/arc/`; Geist, Inter and Geist Mono; light and dark theme), **vitest** for tests.
 - `npm audit`: **0 production vulnerabilities**. The 4 moderate findings are dev-only, from `drizzle-kit`'s bundled esbuild.
 
 ## Instructions
