@@ -3,10 +3,12 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { getMatches } from "@/server/actions/ai";
 import { ProjectCard } from "@/components/ProjectCard";
+import { SampleChip } from "@/components/SampleChip";
 
-type Meta = { full_name: string; is_seed: number; contributing_url: string | null };
+type Meta = { full_name: string; is_seed: number; contributing_url: string | null; html_url: string | null };
 
-const HOURS = ["1–2", "3–5", "6–10", "10+"];
+// Values are part of the ai_briefs cache key: keep them stable.
+const HOURS = ["About 1 hour", "About 3 hours", "6+ hours"];
 
 export function DiscoverClient({ projects }: { projects: Meta[] }) {
   const [skills, setSkills] = useState("TypeScript, React, writing docs");
@@ -14,6 +16,7 @@ export function DiscoverClient({ projects }: { projects: Meta[] }) {
   const meta = new Map(projects.map((p) => [p.full_name, p]));
   const run = useMutation({ mutationFn: (force: boolean) => getMatches(skills, hours, force) });
   const res = run.data;
+  const anySeed = res?.ok && res.data.some((m) => meta.get(m.project)?.is_seed === 1);
 
   return (
     <>
@@ -24,44 +27,59 @@ export function DiscoverClient({ projects }: { projects: Meta[] }) {
           run.mutate(false);
         }}
       >
-        <label className="field">
-          <span>Your skills and interests</span>
-          <textarea rows={3} value={skills} onChange={(e) => setSkills(e.target.value)} required />
-        </label>
-        <label className="field">
-          <span>Time per week (hours)</span>
-          <select value={hours} onChange={(e) => setHours(e.target.value)}>
-            {HOURS.map((h) => (
-              <option key={h} value={h}>
-                {h} hours
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="decision-buttons">
-          <button type="submit" className="btn btn-primary" disabled={run.isPending}>
-            {run.isPending ? "Matching…" : "Find projects"}
-          </button>
-          {res?.ok && (
-            <button type="button" className="btn btn-ghost" disabled={run.isPending} onClick={() => run.mutate(true)}>
-              Regenerate
+        <h1>Find a project that fits you</h1>
+        <div className="discover-row">
+          <div className="discover-field discover-skills">
+            <label htmlFor="skills">Tell us what you know</label>
+            <input id="skills" type="text" value={skills} onChange={(e) => setSkills(e.target.value)} required />
+          </div>
+          <div className="discover-field discover-time">
+            <label htmlFor="time">Time per week</label>
+            <select id="time" value={hours} onChange={(e) => setHours(e.target.value)}>
+              {HOURS.map((h) => (
+                <option key={h} value={h}>
+                  {h}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="discover-actions">
+            <button type="submit" className="btn btn-primary" disabled={run.isPending}>
+              {run.isPending ? "Matching…" : "Match me"}
             </button>
-          )}
+            {res?.ok && (
+              <button type="button" className="btn btn-ghost" disabled={run.isPending} onClick={() => run.mutate(true)}>
+                Regenerate
+              </button>
+            )}
+          </div>
         </div>
       </form>
 
+      {(run.isPending || res) && (
+        <div className="discover-results-head">
+          <h2>Projects using Vouch that match</h2>
+          {anySeed && <SampleChip show />}
+        </div>
+      )}
+
       {run.isPending && (
-        <div className="grid-2" aria-busy="true" aria-label="Gemma is ranking projects">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="card">
+        <div className="discover-grid" aria-busy="true" aria-label="Gemma is ranking projects">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="card discover-card">
               <div className="skeleton" style={{ height: 18, width: "50%" }} />
-              <div className="skeleton" style={{ height: 14, width: "90%", marginTop: 10 }} />
-              <div className="skeleton" style={{ height: 14, width: "70%", marginTop: 8 }} />
+              <div className="skeleton" style={{ height: 14, width: "90%" }} />
+              <div className="skeleton" style={{ height: 14, width: "70%" }} />
+              <div className="skeleton" style={{ height: 14, width: "60%" }} />
             </div>
           ))}
         </div>
       )}
-      {run.error && <div className="error-box">{String(run.error)}</div>}
+      {run.error && (
+        <div className="error-box" role="alert">
+          {String(run.error)}
+        </div>
+      )}
       {!run.isPending && res && !res.ok && (
         <div className="error-box" role="alert">
           <strong>{res.error.code === "model_unavailable" ? "Model unavailable" : "Invalid model output"}</strong>
@@ -71,7 +89,7 @@ export function DiscoverClient({ projects }: { projects: Meta[] }) {
       {!run.isPending && res?.ok && (
         <>
           {res.data.length === 0 && <p className="muted">No matching projects in the index.</p>}
-          <div className="grid-2">
+          <div className="discover-grid">
             {res.data.map((m) => {
               const p = meta.get(m.project);
               return (
@@ -80,6 +98,7 @@ export function DiscoverClient({ projects }: { projects: Meta[] }) {
                   {...m}
                   is_seed={p?.is_seed === 1}
                   contributing_url={p?.contributing_url ?? null}
+                  html_url={p?.html_url ?? null}
                 />
               );
             })}
@@ -90,6 +109,10 @@ export function DiscoverClient({ projects }: { projects: Meta[] }) {
           </p>
         </>
       )}
+      <p className="discover-footer">
+        Match reasons are generated by Gemma 4 from your input and public project data. Your query is cached locally
+        only.
+      </p>
     </>
   );
 }

@@ -5,51 +5,82 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getTriage } from "@/server/actions/ai";
 import { decideRequest } from "@/server/actions/pages";
 import type { VouchRequest, Decision } from "@/db/repo";
+import { SampleChip } from "./SampleChip";
 
 const STATUS_LABEL: Record<string, string> = {
-  open: "open",
-  vouched: "vouched",
-  more_info: "asked for more info",
-  denounced: "denounced",
+  open: "Open",
+  vouched: "Vouched",
+  more_info: "Asked for more info",
+  denounced: "Denounced",
 };
 const statusClass = (s: string) => (s === "vouched" ? "chip chip-ok" : s === "denounced" ? "chip chip-warn" : "chip");
+const firstLine = (m: string) => {
+  const line = m.split(/\r?\n|(?<=[.!?])\s/)[0];
+  return line.length > 70 ? `${line.slice(0, 68)}…` : line;
+};
 
-export function RequestList({ initial, project }: { initial: VouchRequest[]; project: string }) {
+function CheckIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" aria-hidden="true">
+      <path d="M5 12l5 5L20 7" />
+    </svg>
+  );
+}
+function WarnIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B45309" strokeWidth="2.5" aria-hidden="true">
+      <path d="M12 8v5M12 17h.01" />
+      <circle cx="12" cy="12" r="9" />
+    </svg>
+  );
+}
+
+export function RequestList({ initial, project, isSeed }: { initial: VouchRequest[]; project: string; isSeed: boolean }) {
   const [requests, setRequests] = useState(initial);
   const [selectedId, setSelectedId] = useState<number | null>(
     initial.find((r) => r.status === "open")?.id ?? initial[0]?.id ?? null,
   );
-  useEffect(() => {
-    setRequests(initial);
-    setSelectedId(initial.find((r) => r.status === "open")?.id ?? initial[0]?.id ?? null);
-  }, [initial]);
   const selected = requests.find((r) => r.id === selectedId) ?? null;
+  const open = requests.filter((r) => r.status === "open");
+  const decided = requests.filter((r) => r.status !== "open");
 
   if (requests.length === 0) return <p className="muted">No vouch requests for this project.</p>;
 
+  const item = (r: VouchRequest) => (
+    <li key={r.id}>
+      <button
+        type="button"
+        className={`req-item${r.id === selectedId ? " is-selected" : ""}`}
+        aria-pressed={r.id === selectedId}
+        onClick={() => setSelectedId(r.id)}
+      >
+        <span className="req-item-top">
+          <strong>@{r.requester_login}</strong>
+          {r.status !== "open" && <span className={statusClass(r.status)}>{STATUS_LABEL[r.status] ?? r.status}</span>}
+        </span>
+        <span className="muted small">{firstLine(r.message)}</span>
+      </button>
+    </li>
+  );
+
   return (
-    <div className="requests-layout">
-      <ul className="request-items" aria-label="Vouch requests">
-        {requests.map((r) => (
-          <li key={r.id}>
-            <button
-              type="button"
-              className={`request-item${r.id === selectedId ? " selected" : ""}`}
-              aria-pressed={r.id === selectedId}
-              onClick={() => setSelectedId(r.id)}
-            >
-              <span className="mono">@{r.requester_login}</span>
-              <span className={statusClass(r.status)}>{STATUS_LABEL[r.status] ?? r.status}</span>
-              <span className="muted small request-snippet">{r.message.slice(0, 80)}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
+    <div className="req-layout">
+      <section className="card req-list" aria-label="Vouch requests">
+        <h2 className="req-list-heading">Open · {open.length}</h2>
+        {open.length === 0 ? <p className="muted small req-empty">Nothing open.</p> : <ul>{open.map(item)}</ul>}
+        {decided.length > 0 && (
+          <>
+            <h2 className="req-list-heading">Decided · {decided.length}</h2>
+            <ul>{decided.map(item)}</ul>
+          </>
+        )}
+      </section>
       {selected && (
         <RequestDetail
           key={selected.id}
           request={selected}
           project={project}
+          isSeed={isSeed}
           onDecided={(u) => setRequests((rs) => rs.map((r) => (r.id === u.id ? u : r)))}
         />
       )}
@@ -60,10 +91,12 @@ export function RequestList({ initial, project }: { initial: VouchRequest[]; pro
 function RequestDetail({
   request,
   project,
+  isSeed,
   onDecided,
 }: {
   request: VouchRequest;
   project: string;
+  isSeed: boolean;
   onDecided: (r: VouchRequest) => void;
 }) {
   const qc = useQueryClient();
@@ -88,86 +121,97 @@ function RequestDetail({
   });
 
   return (
-    <section className="card request-detail" aria-labelledby={`req-${request.id}`}>
-      <div className="card-head">
+    <section className="card req-detail" aria-labelledby={`req-${request.id}`}>
+      <div className="req-detail-head">
         <h2 id={`req-${request.id}`}>
-          <Link href={`/u/${request.requester_login}`} className="mono">
-            @{request.requester_login}
-          </Link>{" "}
-          <span className="muted small">wants to be vouched in</span> <span className="mono">{project}</span>
+          <Link href={`/u/${request.requester_login}`}>@{request.requester_login}</Link> wants to contribute
         </h2>
+        <SampleChip show={isSeed} />
       </div>
-      <blockquote className="request-message">{request.message}</blockquote>
-      <p className="muted small">Requested {new Date(request.created_at).toLocaleString()}</p>
+      <blockquote className="req-message">“{request.message}”</blockquote>
+      <p className="muted small">
+        To <span className="mono">{project}</span> · requested {new Date(request.created_at).toLocaleString()}
+      </p>
 
-      <div className="card-head">
-        <h3>What Gemma checked</h3>
-        <button type="button" className="btn btn-ghost" onClick={() => regen.mutate()} disabled={loading}>
-          {regen.isPending ? "Re-checking…" : "Re-check"}
-        </button>
+      <div className="req-brief">
+        <div className="req-brief-head">
+          <h3>Gemma brief</h3>
+          <span className="req-badge mono">public data · local model</span>
+          <button type="button" className="btn btn-ghost req-recheck" onClick={() => regen.mutate()} disabled={loading}>
+            {regen.isPending ? "Re-checking…" : "Re-check"}
+          </button>
+        </div>
+        {loading && (
+          <div className="req-checks" aria-busy="true" aria-label="Gemma is checking the request">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="req-check">
+                <div className="skeleton" style={{ height: 14, width: "85%" }} />
+              </div>
+            ))}
+          </div>
+        )}
+        {!loading && res && !res.ok && (
+          <div className="error-box" role="alert">
+            <strong>{res.error.code === "model_unavailable" ? "Model unavailable" : "Could not read the model output"}</strong>
+            <p>{res.error.message} You can still decide below.</p>
+          </div>
+        )}
+        {!loading && res?.ok && (
+          <ul className="req-checks">
+            {res.data.checks.map((c, i) => (
+              <li key={i} className={`req-check${c.ok ? "" : " is-warn"}`}>
+                {c.ok ? <CheckIcon /> : <WarnIcon />}
+                <span>
+                  <span className="sr-only">{c.ok ? "Yes: " : "Needs attention: "}</span>
+                  {c.label}
+                  {c.evidence_url && (
+                    <>
+                      {" "}
+                      <a href={c.evidence_url} target="_blank" rel="noreferrer" className="small">
+                        evidence ↗
+                      </a>
+                    </>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
-      {loading && (
-        <div aria-busy="true" aria-label="Gemma is checking the request">
-          <div className="skeleton" style={{ height: 14, width: "80%" }} />
-          <div className="skeleton" style={{ height: 14, width: "65%", marginTop: 8 }} />
-          <div className="skeleton" style={{ height: 14, width: "70%", marginTop: 8 }} />
-        </div>
-      )}
-      {!loading && res && !res.ok && (
-        <div className="error-box" role="alert">
-          <strong>{res.error.code === "model_unavailable" ? "Model unavailable" : "Invalid model output"}</strong>
-          <p>{res.error.message}</p>
-        </div>
-      )}
-      {!loading && res?.ok && (
-        <ul className="checks">
-          {res.data.checks.map((c, i) => (
-            <li key={i}>
-              <span className={c.ok ? "chip chip-ok" : "chip chip-warn"} aria-label={c.ok ? "yes" : "attention"}>
-                {c.ok ? "✓" : "!"}
-              </span>{" "}
-              {c.label}
-              {c.evidence_url && (
-                <>
-                  {" "}
-                  <a href={c.evidence_url} target="_blank" rel="noreferrer" className="evidence-link">
-                    evidence ↗
-                  </a>
-                </>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
 
-      <label className="field">
-        <span>Reply to requester (editable draft)</span>
-        <textarea rows={4} value={reply} onChange={(e) => setReply(e.target.value)} />
-      </label>
+      <div className="req-reply">
+        <label htmlFor={`reply-${request.id}`}>Draft reply</label>
+        <textarea id={`reply-${request.id}`} rows={3} value={reply} onChange={(e) => setReply(e.target.value)} />
+      </div>
 
-      {request.status !== "open" ? (
-        <p>
+      {request.status !== "open" && (
+        <p className="req-decided">
           <span className={statusClass(request.status)}>{STATUS_LABEL[request.status]}</span> by{" "}
           <span className="mono">{request.decided_by}</span>
-          {request.decided_at && <> on {new Date(request.decided_at).toLocaleString()}</>}
+          {request.decided_at && <> · {new Date(request.decided_at).toLocaleString()}</>}
         </p>
-      ) : null}
+      )}
 
-      <div className="decision-buttons">
-        <button type="button" className="btn btn-primary" disabled={decide.isPending} onClick={() => decide.mutate("vouched")}>
+      <div className="req-actions">
+        <button type="button" className="btn req-btn-vouch" disabled={decide.isPending} onClick={() => decide.mutate("vouched")}>
           Vouch
         </button>
-        <button type="button" className="btn" disabled={decide.isPending} onClick={() => decide.mutate("more_info")}>
+        <button type="button" className="btn req-btn-info" disabled={decide.isPending} onClick={() => decide.mutate("more_info")}>
           Ask for more info
         </button>
         {!confirmDenounce ? (
-          <button type="button" className="btn btn-warn" disabled={decide.isPending} onClick={() => setConfirmDenounce(true)}>
+          <button
+            type="button"
+            className="btn req-btn-denounce"
+            disabled={decide.isPending}
+            onClick={() => setConfirmDenounce(true)}
+          >
             Denounce…
           </button>
         ) : (
-          <span className="confirm-denounce" role="group" aria-label="Confirm denounce">
+          <span className="req-confirm" role="group" aria-label="Confirm denounce">
             <span>Denounce @{request.requester_login}?</span>
-            <button type="button" className="btn btn-warn" onClick={() => decide.mutate("denounced")}>
+            <button type="button" className="btn req-btn-denounce-confirm" onClick={() => decide.mutate("denounced")}>
               Yes, denounce
             </button>
             <button type="button" className="btn btn-ghost" onClick={() => setConfirmDenounce(false)}>
@@ -177,8 +221,9 @@ function RequestDetail({
         )}
       </div>
       {decide.error && <div className="error-box">{String(decide.error)}</div>}
-      <p className="note-box">
-        In production this would open a PR updating <span className="mono">VOUCHED.td</span>. Nothing is written to GitHub.
+      <p className="muted small req-footnote">
+        In production your decision would open a PR updating <span className="mono">VOUCHED.td</span> — nothing is written
+        to GitHub today. The AI only summarizes; it never acts on its own.
       </p>
     </section>
   );
