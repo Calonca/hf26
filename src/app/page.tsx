@@ -100,16 +100,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
           )}
         </section>
 
-        <aside className="stack" aria-label="Index">
-          <section className="card">
-            <h2 className="card-title">Index</h2>
-            <div className="stat-grid">
-              <div className="stat"><b>{fmt(stats.projects)}</b><span>projects with VOUCHED.td</span></div>
-              <div className="stat"><b>{fmt(stats.vouched)}</b><span>vouched contributors</span></div>
-              <div className="stat"><b>{fmt(stats.denounced)}</b><span>denounced</span></div>
-              <div className="stat"><b>{fmt(stats.events)}</b><span>vouch events</span></div>
-            </div>
-          </section>
+        <aside className="stack" aria-label="Recent vouches and index">
           <section className="card">
             <h2 className="card-title">Recent vouches</h2>
             {stats.recent.length === 0 ? (
@@ -134,6 +125,15 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
             {result?.kind === "user" && (
               <Link className="strong-link" href={`/u/${encodeURIComponent(result.q)}`}>Open @{result.q}&apos;s profile →</Link>
             )}
+          </section>
+          <section className="card">
+            <h2 className="card-title">Index</h2>
+            <div className="stat-grid">
+              <div className="stat"><b>{fmt(stats.projects)}</b><span>projects with VOUCHED.td</span></div>
+              <div className="stat"><b>{fmt(stats.vouched)}</b><span>vouched contributors</span></div>
+              <div className="stat"><b>{fmt(stats.denounced)}</b><span>denounced</span></div>
+              <div className="stat"><b>{fmt(stats.events)}</b><span>vouch events</span></div>
+            </div>
           </section>
         </aside>
       </div>
