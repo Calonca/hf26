@@ -201,3 +201,7 @@
   color: #9a4508;
   font-weight: 600;
 }
+
+.brief-vouch { padding: 12px 14px; border-radius: 8px; background: var(--accent-soft, #E1F2EF); }
+.brief-vouch.is-warn { background: #FBEBDD; border: 1px solid #F3C9A1; }
+.brief-vouch p { margin: 0; }

@@ -9,15 +9,15 @@ import { userContributions, type Contribution } from "../github";
 import { generate, SERVER_MODEL } from "./ollamaRunner";
 
 export const PROMPT_VERSIONS = {
-  brief: "brief-v1",
-  triage: "triage-v2",
+  brief: "brief-v3",
+  triage: "triage-v3",
   discover: "discover-v1",
 } as const;
 
 export const RULES =
   "Use only the data provided. If evidence is missing, say so. Do not rate or score the person. Do not recommend vouching or denouncing.";
 
-export type AiError = { code: "model_unavailable" | "invalid_output" | "not_found"; message: string };
+export type AiError = { code: "model_unavailable" | "invalid_output" | "not_found" | "cancelled"; message: string };
 export type AiResult<T> =
   | { ok: true; data: T; cached: boolean; created_at: string; model: string }
   | { ok: false; error: AiError };
@@ -75,7 +75,7 @@ export function complete<Out>(p: Prepared<Out>, raw: string, model: string): AiR
 }
 
 /** Cache → server model (retry once on invalid output). */
-export async function runOnServer<Out>(p: Prepared<Out>, force = false): Promise<AiResult<Out>> {
+export async function runOnServer<Out>(p: Prepared<Out>, force = false, signal?: AbortSignal): Promise<AiResult<Out>> {
   if (!force) {
     const hit = cachedResult(p, SERVER_MODEL);
     if (hit) return hit;
@@ -85,8 +85,9 @@ export async function runOnServer<Out>(p: Prepared<Out>, force = false): Promise
   for (let attempt = 0; attempt < 2; attempt++) {
     let raw: string;
     try {
-      raw = await generate(spec.system, spec.prompt, spec.jsonSchema);
+      raw = await generate(spec.system, spec.prompt, spec.jsonSchema, signal);
     } catch (err) {
+      if (signal?.aborted) return { ok: false, error: { code: "cancelled", message: "Cancelled: the page was closed." } };
       return {
         ok: false,
         error: { code: "model_unavailable", message: `Could not reach ${SERVER_MODEL} (${(err as Error).message}). No cached result yet.` },
@@ -116,7 +117,20 @@ const BriefSchema = z.object({
   gaps: z.array(z.string()),
   areas: z.array(z.string()),
 });
-export type Brief = z.infer<typeof BriefSchema>;
+/** vouch_lists is computed from the DB, not written by the model: small models drop denouncements. */
+export type Brief = z.infer<typeof BriefSchema> & { vouch_lists: string };
+
+function describeVouchLists(s: { vouched_in: number; denounced_in: number; denounce_notes: (string | null)[] }) {
+  const projects = (n: number) => `${n} indexed project${n === 1 ? "" : "s"}`;
+  if (s.vouched_in === 0 && s.denounced_in === 0) return "Not listed in any indexed VOUCHED.td.";
+  const parts: string[] = [];
+  if (s.denounced_in > 0) {
+    const notes = s.denounce_notes.length ? ` with the note${s.denounce_notes.length > 1 ? "s" : ""} ${s.denounce_notes.map((n) => `“${n}”`).join(", ")}` : "";
+    parts.push(`Denounced in ${projects(s.denounced_in)}${notes}.`);
+  }
+  if (s.vouched_in > 0) parts.push(`Vouched in ${projects(s.vouched_in)}.`);
+  return parts.join(" ");
+}
 
 export async function prepareBrief(login: string): Promise<Prepared<Brief>> {
   const contributions = await safeContributions(login);
@@ -126,8 +140,17 @@ export async function prepareBrief(login: string): Promise<Prepared<Brief>> {
     voucher: e.voucher ?? "unknown",
     note: e.note,
   }));
+  // Pre-digested so a small model can't miss it: counts plus maintainers' own notes, verbatim.
+  const denounced = vouches.filter((v) => v.status === "denounced");
+  const vouch_summary = {
+    vouched_in: vouches.filter((v) => v.status === "vouched").length,
+    denounced_in: denounced.length,
+    denounce_notes: [...new Set(denounced.map((d) => d.note).filter(Boolean))],
+    denounced_by_projects: denounced.map((d) => d.project).slice(0, 10),
+  };
   const input = {
     login,
+    vouch_summary,
     contributions: contributions.map(({ title, repo, kind, state, url }) => ({ title, repo, kind, state, url })),
     vouch_entries: vouches,
   };
@@ -140,19 +163,22 @@ export async function prepareBrief(login: string): Promise<Prepared<Brief>> {
     schema: BriefSchema,
     system: sys(
       "You write short, factual contribution briefs about open-source contributors for maintainers. " +
-      "summary: 2-3 sentences describing what the person works on. strengths: up to 4 items, each citing one evidence_url copied exactly from the input contributions. " +
+      "summary: 2-3 sentences describing what the person works on. " +
+      "If vouch_summary.denounced_in > 0, the summary must state that maintainers denounced them and quote the notes, without adding judgement. strengths: up to 4 items, each citing one evidence_url copied exactly from the input contributions. " +
       "gaps: what the data does not show (e.g. no reviews, no merged PRs). areas: short lowercase topic tags like docs, cli, tests.",
     ),
     prompt: `Data for GitHub user ${login}:\n${JSON.stringify(input, null, 1)}`,
-    postprocess: (b: Brief) => ({
+    postprocess: (b: z.infer<typeof BriefSchema>): Brief => ({
       ...b,
+      vouch_lists: describeVouchLists(vouch_summary),
       strengths: b.strengths.filter((s) => urls.has(s.evidence_url)),
       areas: b.areas.slice(0, 8),
     }),
   };
 }
 
-export const contributionBrief = async (login: string, force = false) => runOnServer(await prepareBrief(login), force);
+export const contributionBrief = async (login: string, force = false, signal?: AbortSignal) =>
+  runOnServer(await prepareBrief(login), force, signal);
 
 // ---------- 2. Request triage ----------
 
@@ -175,7 +201,7 @@ export async function prepareTriage(requestId: number, model: string): Promise<P
   const here = edges.find((e) => e.project === repo);
   const elsewhere = edges
     .filter((e) => e.project !== repo)
-    .map((e) => ({ project: e.project, status: e.status, voucher: e.voucher ?? "unknown" }));
+    .map((e) => ({ project: e.project, status: e.status, voucher: e.voucher ?? "unknown", note: e.note }));
   const input = {
     project: repo,
     requester: req.requester_login,
