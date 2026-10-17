@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { modelLabel } from "@/lib/edgeModel";
 import NavLinks from "./NavLinks";
@@ -15,7 +16,9 @@ export default function Header() {
           </svg>
           <span>Vouch Explorer</span>
         </Link>
-        <NavLinks />
+        <Suspense fallback={null}>
+          <NavLinks />
+        </Suspense>
         <span className="model-badge" title="Open-weight model, runs in your browser">{modelLabel()} · edge</span>
       </div>
     </header>

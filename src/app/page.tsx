@@ -29,6 +29,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
           <label htmlFor="q" className="sr-only">GitHub handle or project</label>
           <input id="q" name="q" defaultValue={q ? (result?.kind === "user" ? `@${q}` : q) : ""} placeholder="Search a GitHub handle or owner/repo" autoComplete="off" />
           <button className="btn btn-primary" type="submit">Map trust</button>
+          <button className="btn btn-outline" type="submit" formAction="/profile">Show profile</button>
         </form>
         {stats.suggestions.length > 0 && (
           <div className="row small muted">
@@ -36,7 +37,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
             {stats.suggestions.slice(0, 6).map((s) => (
               <Link key={s} className="mono" href={`/?q=${encodeURIComponent(s)}`}>@{s}</Link>
             ))}
-            <Link className="mono" href="/?q=sample-org/termlight">sample-org/termlight</Link>
+            <Link className="mono" href="/?q=Calonca/hf26">Calonca/hf26</Link>
           </div>
         )}
       </section>
@@ -100,16 +101,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
           )}
         </section>
 
-        <aside className="stack" aria-label="Index">
-          <section className="card">
-            <h2 className="card-title">Index</h2>
-            <div className="stat-grid">
-              <div className="stat"><b>{fmt(stats.projects)}</b><span>projects with VOUCHED.td</span></div>
-              <div className="stat"><b>{fmt(stats.vouched)}</b><span>vouched contributors</span></div>
-              <div className="stat"><b>{fmt(stats.denounced)}</b><span>denounced</span></div>
-              <div className="stat"><b>{fmt(stats.events)}</b><span>vouch events</span></div>
-            </div>
-          </section>
+        <aside className="stack" aria-label="Recent vouches and index">
           <section className="card">
             <h2 className="card-title">Recent vouches</h2>
             {stats.recent.length === 0 ? (
@@ -134,6 +126,15 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
             {result?.kind === "user" && (
               <Link className="strong-link" href={`/u/${encodeURIComponent(result.q)}`}>Open @{result.q}&apos;s profile →</Link>
             )}
+          </section>
+          <section className="card">
+            <h2 className="card-title">Index</h2>
+            <div className="stat-grid">
+              <div className="stat"><b>{fmt(stats.projects)}</b><span>projects with VOUCHED.td</span></div>
+              <div className="stat"><b>{fmt(stats.vouched)}</b><span>vouched contributors</span></div>
+              <div className="stat"><b>{fmt(stats.denounced)}</b><span>denounced</span></div>
+              <div className="stat"><b>{fmt(stats.events)}</b><span>vouch events</span></div>
+            </div>
           </section>
         </aside>
       </div>

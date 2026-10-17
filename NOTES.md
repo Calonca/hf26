@@ -7,7 +7,7 @@
 - Timestamps are ISO-8601 text and JSON is stored as text, so the SQL ports to Postgres. `trust_edges` is a repo function (`trustRepo`), not a DB view.
 - No auth: `getCurrentUser()` returns a fixed demo maintainer (TODO: GitHub OAuth).
 - **ESLint removed:** `eslint-config-next` pulled in packages with high-severity `npm audit` findings. TypeScript (`tsc --noEmit`) is the static check.
-- Seeded projects and requests have `is_seed = 1` and show a "Sample data" chip.
+- All projects and vouch lists are real (crawled). Only the vouch requests are seeded (`is_seed = 1`, "Demo request" chip), because requests are not public data; they target `Calonca/success-cli`, which the demo maintainer owns.
 
 ## Edge AI (model in the browser)
 

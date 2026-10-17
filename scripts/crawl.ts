@@ -1,5 +1,5 @@
 // Find public VOUCHED.td files via GitHub code search and index them.
-// Usage: npm run crawl [-- --limit 300] [--force]
+// Usage: npm run crawl [-- --limit 300] [--force] [--repo owner/name] [--prune]
 import "dotenv/config";
 import { projectsRepo } from "../src/db/repo";
 import { contributingUrl, getFile, getRepoMeta, goodFirstIssues, octokit, sleep, withRetry } from "../src/server/github";
@@ -7,9 +7,17 @@ import { indexVouchFile } from "../src/server/indexer";
 
 const limitArg = process.argv.indexOf("--limit");
 const LIMIT = limitArg > 0 ? Number(process.argv[limitArg + 1]) : 300;
-const FORCE = process.argv.includes("--force"); // re-parse even if the file SHA is unchanged
+const FORCE = process.argv.includes("--force");
+const CANONICAL = new Set(["VOUCHED.td", ".github/VOUCHED.td"]); // re-parse even if the file SHA is unchanged
+
+const repoArg = process.argv.indexOf("--repo"); // index one repo directly, e.g. --repo Calonca/hf26
 
 async function searchVouchFiles() {
+  if (repoArg > 0) {
+    const name = process.argv[repoArg + 1];
+    for (const path of ["VOUCHED.td", ".github/VOUCHED.td"]) if (await getFile(name, path)) return [[name, path]];
+    throw new Error(`no VOUCHED.td in ${name}`);
+  }
   const hits = new Map<string, string>(); // full_name → path
   for (let page = 1; hits.size < LIMIT && page <= 10; page++) {
     const { data } = await withRetry(() =>
@@ -17,6 +25,9 @@ async function searchVouchFiles() {
     );
     for (const item of data.items) {
       const name = item.repository.full_name;
+      // Vouch reads only these two locations; other hits are templates or vendored copies
+      // of another project's list (e.g. vendor/ghostty/.github/VOUCHED.td) and would misattribute trust.
+      if (!CANONICAL.has(item.path)) continue;
       // Prefer the canonical locations if a repo has several matches.
       const prev = hits.get(name);
       if (!prev || item.path === "VOUCHED.td" || (item.path === ".github/VOUCHED.td" && prev !== "VOUCHED.td"))
@@ -54,6 +65,11 @@ async function indexOne(fullName: string, path: string) {
 }
 
 async function main() {
+  if (process.argv.includes("--prune")) {
+    const removed = projectsRepo.pruneNonCanonical([...CANONICAL]);
+    console.log(`pruned ${removed.length} projects indexed from non-canonical paths`);
+    return;
+  }
   const hits = await searchVouchFiles();
   console.log(`indexing ${hits.length} repositories…`);
   const totals = { projects: 0, skipped: 0, failed: 0, entries: 0, events: 0 };
