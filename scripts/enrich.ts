@@ -1,6 +1,6 @@
 // Walk the git history of each project's VOUCHED.td and record who added/removed each line.
 // voucher_id = the commit's GitHub author when GitHub resolves it, else NULL. Never guessed.
-// Usage: npm run enrich [-- --limit 60 --commits 30]
+// Usage: npm run enrich [-- --limit 60 --commits 30] [--repo owner/name]
 import "dotenv/config";
 import { projectsRepo, usersRepo, vouchRepo } from "../src/db/repo";
 import { fileCommits } from "../src/server/github";
@@ -12,6 +12,7 @@ const arg = (name: string, def: number) => {
 };
 const LIMIT = arg("--limit", 60);
 const MAX_COMMITS = arg("--commits", 30);
+const ONLY = process.argv.includes("--repo") ? process.argv[process.argv.indexOf("--repo") + 1] : null;
 
 async function rawAt(fullName: string, sha: string, path: string): Promise<string | null> {
   // raw.githubusercontent.com does not count against the REST API rate limit.
@@ -55,6 +56,7 @@ async function main() {
   const targets = projectsRepo
     .list()
     .filter((p) => !p.is_seed && p.vouch_file_path)
+    .filter((p) => !ONLY || p.full_name.toLowerCase() === ONLY.toLowerCase())
     .slice(0, LIMIT);
   console.log(`enriching ${targets.length} projects (max ${MAX_COMMITS} commits each)…`);
   const totals = { projects: 0, commits: 0, events: 0, failed: 0 };

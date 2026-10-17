@@ -1,5 +1,5 @@
 // Find public VOUCHED.td files via GitHub code search and index them.
-// Usage: npm run crawl [-- --limit 300] [--force]
+// Usage: npm run crawl [-- --limit 300] [--force] [--repo owner/name]
 import "dotenv/config";
 import { projectsRepo } from "../src/db/repo";
 import { contributingUrl, getFile, getRepoMeta, goodFirstIssues, octokit, sleep, withRetry } from "../src/server/github";
@@ -9,7 +9,14 @@ const limitArg = process.argv.indexOf("--limit");
 const LIMIT = limitArg > 0 ? Number(process.argv[limitArg + 1]) : 300;
 const FORCE = process.argv.includes("--force"); // re-parse even if the file SHA is unchanged
 
+const repoArg = process.argv.indexOf("--repo"); // index one repo directly, e.g. --repo Calonca/hf26
+
 async function searchVouchFiles() {
+  if (repoArg > 0) {
+    const name = process.argv[repoArg + 1];
+    for (const path of ["VOUCHED.td", ".github/VOUCHED.td"]) if (await getFile(name, path)) return [[name, path]];
+    throw new Error(`no VOUCHED.td in ${name}`);
+  }
   const hits = new Map<string, string>(); // full_name → path
   for (let page = 1; hits.size < LIMIT && page <= 10; page++) {
     const { data } = await withRetry(() =>
