@@ -165,7 +165,7 @@ export default function TrustGraph({ center, edges }: Props) {
       cy.on("tap", "node", (evt) => {
         const d = evt.target.data();
         if (d.isCenter) return;
-        router.push(d.kind === "project" ? `/?q=${encodeURIComponent(d.label)}` : `/u/${encodeURIComponent(d.label)}`);
+        router.push(`/?q=${encodeURIComponent(d.kind === "project" ? d.label : d.label.replace(/^@/, ""))}`);
       });
     })();
     return () => {
