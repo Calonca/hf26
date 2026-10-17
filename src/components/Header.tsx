@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import AiQueue from "./AiQueue";
 import NavLinks from "./NavLinks";
 
 /** "gemma4:e4b" → "Gemma 4 E4B · local" */
@@ -25,6 +26,7 @@ export default function Header() {
         <Suspense fallback={null}>
           <NavLinks />
         </Suspense>
+        <AiQueue />
         <span className="model-badge" title="Open-weight model, runs locally">{modelLabel()}</span>
       </div>
     </header>

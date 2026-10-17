@@ -7,6 +7,7 @@ import { z } from "zod";
 import { briefsRepo, projectsRepo, requestsRepo, trustRepo } from "../../db/repo";
 import { userContributions, type Contribution } from "../github";
 import { generate, SERVER_MODEL } from "./ollamaRunner";
+import { enqueue } from "./queue";
 
 export const PROMPT_VERSIONS = {
   brief: "brief-v3",
@@ -74,6 +75,12 @@ export function complete<Out>(p: Prepared<Out>, raw: string, model: string): AiR
   return { ok: true, data, cached: false, created_at: row.created_at, model };
 }
 
+function jobLabel(p: Prepared<unknown>) {
+  if (p.subjectType === "user") return `Brief @${p.subjectKey}`;
+  if (p.subjectType === "request") return `Triage request #${p.subjectKey.split(":")[0]} (@${p.subjectKey.split(":")[1] ?? "?"})`;
+  return `Discover “${p.subjectKey.split("|")[0].slice(0, 40)}”`;
+}
+
 /** Cache → server model (retry once on invalid output). */
 export async function runOnServer<Out>(p: Prepared<Out>, force = false, signal?: AbortSignal): Promise<AiResult<Out>> {
   if (!force) {
@@ -85,9 +92,10 @@ export async function runOnServer<Out>(p: Prepared<Out>, force = false, signal?:
   for (let attempt = 0; attempt < 2; attempt++) {
     let raw: string;
     try {
-      raw = await generate(spec.system, spec.prompt, spec.jsonSchema, signal);
+      raw = await enqueue(jobLabel(p), (s) => generate(spec.system, spec.prompt, spec.jsonSchema, s), signal);
     } catch (err) {
-      if (signal?.aborted) return { ok: false, error: { code: "cancelled", message: "Cancelled: the page was closed." } };
+      if ((err as Error).name === "AbortError" || signal?.aborted)
+        return { ok: false, error: { code: "cancelled", message: "Cancelled (page closed or cancelled from the AI queue)." } };
       return {
         ok: false,
         error: { code: "model_unavailable", message: `Could not reach ${SERVER_MODEL} (${(err as Error).message}). No cached result yet.` },
