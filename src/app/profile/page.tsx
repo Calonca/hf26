@@ -3,6 +3,7 @@ import { Button } from "@/components/arc/button/button";
 import { Input } from "@/components/arc/input/input";
 import { redirect } from "next/navigation";
 import { indexStats } from "@/server/actions/explore";
+import { cleanQuery } from "@/lib/query";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,7 @@ const TEAM = (process.env.NEXT_PUBLIC_TEAM ?? "Calonca,deste04,fabianhogger").sp
 
 /** /profile?q=handle → /u/handle. Without q: a lookup page instead of defaulting to one person. */
 export default async function ProfileLookup({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
-  const q = ((await searchParams).q ?? "").trim().replace(/^@/, "");
+  const q = cleanQuery((await searchParams).q ?? "");
   if (q.includes("/")) redirect(`/?q=${encodeURIComponent(q)}`); // owner/repo is a project, not a person
   if (q) redirect(`/u/${encodeURIComponent(q)}`);
   const { suggestions } = await indexStats();

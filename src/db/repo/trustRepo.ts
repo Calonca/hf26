@@ -78,6 +78,19 @@ export const trustRepo = {
   edgesForProject(fullName: string): TrustEdge[] {
     return edges(and(sql`lower(${projects.full_name}) = lower(${fullName})`, isNull(vouch_entries.removed_at)));
   },
+  /** Projects with the most active entries (for search suggestions). */
+  suggestProjects(limit = 4): string[] {
+    return db
+      .select({ name: projects.full_name, n: sql<number>`count(*)` })
+      .from(vouch_entries)
+      .innerJoin(projects, eq(projects.id, vouch_entries.project_id))
+      .where(isNull(vouch_entries.removed_at))
+      .groupBy(projects.full_name)
+      .orderBy(desc(sql`count(*)`), projects.full_name)
+      .limit(limit)
+      .all()
+      .map((r) => r.name);
+  },
   /** Logins of users who are listed somewhere (for search suggestions). */
   suggestLogins(limit = 8): string[] {
     return db

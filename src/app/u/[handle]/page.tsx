@@ -2,15 +2,17 @@ import Link from "next/link";
 import { Avatar } from "@/components/arc/avatar/avatar";
 import { Badge } from "@/components/arc/badge/badge";
 import { BriefCard } from "@/components/BriefCard";
+import { ContributionHeatmap } from "@/components/ContributionHeatmap";
 import { SampleChip } from "@/components/SampleChip";
 import { getProfileData } from "@/server/actions/pages";
 import "./profile.css";
+import { cleanQuery } from "@/lib/query";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProfilePage({ params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params;
-  const login = decodeURIComponent(handle).replace(/^@/, "");
+  const login = cleanQuery(decodeURIComponent(handle));
   const data = await getProfileData(login);
   const vouched = data.edges.filter((e) => e.status === "vouched");
   const denounced = data.edges.filter((e) => e.status === "denounced");
@@ -84,6 +86,13 @@ export default async function ProfilePage({ params }: { params: Promise<{ handle
 
       <div className="profile-main">
         <BriefCard login={data.login} />
+
+        {data.calendar && (
+          <section className="card profile-section" aria-labelledby="calendar-title">
+            <h2 id="calendar-title">GitHub activity</h2>
+            <ContributionHeatmap login={data.login} initial={data.calendar} years={data.years} />
+          </section>
+        )}
 
         <section className="card profile-section" aria-labelledby="activity-title">
           <h2 id="activity-title">Activity by project</h2>

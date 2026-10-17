@@ -39,8 +39,8 @@ export default function AiQueue() {
 
   return (
     <div className="ai-queue" ref={box}>
-      <Button variant={running ? "primary" : "secondary"} size="sm" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        AI queue · {jobs.length}
+      <Button variant={running ? "primary" : "secondary"} size="sm" className="ai-queue-btn" aria-expanded={open} aria-label={`AI queue, ${jobs.length} job${jobs.length === 1 ? "" : "s"}`} onClick={() => setOpen((o) => !o)}>
+        AI queue{jobs.length > 0 && <span className="ai-queue-count">{jobs.length}</span>}
       </Button>
       {open && (
         <div className="ai-queue-panel" role="dialog" aria-label="AI queue">

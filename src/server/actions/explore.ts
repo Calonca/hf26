@@ -2,9 +2,10 @@
 import { sharedTrustRepo } from "../../db/neon/sharedTrustRepo";
 import { projectsRepo, trustRepo, usersRepo, vouchRepo } from "../../db/repo";
 import { mergeEdges } from "../trust/merge";
+import { cleanQuery } from "../../lib/query";
 
 export async function exploreSearch(q: string) {
-  const query = q.trim().replace(/^@/, "");
+  const query = cleanQuery(q);
   const kind = query.includes("/") ? ("project" as const) : ("user" as const);
   const local = kind === "project" ? trustRepo.edgesForProject(query) : trustRepo.edgesForUser(query);
   // The shared index is an enrichment: if it fails or is unconfigured, local still renders.
@@ -24,6 +25,7 @@ export async function indexStats() {
     ...vouchRepo.counts(),
     recent: vouchRepo.recentEvents(10),
     suggestions: trustRepo.suggestLogins(8),
+    projectSuggestions: trustRepo.suggestProjects(4),
     // Reported separately, never summed into the local totals.
     shared,
   };

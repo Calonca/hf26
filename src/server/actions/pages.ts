@@ -1,7 +1,8 @@
 "use server";
 import { projectsRepo, requestsRepo, trustRepo, type Decision } from "../../db/repo";
+import { isGithubLogin } from "../../lib/query";
 import { getCurrentUser } from "../auth";
-import { getUser, userContributions, type Contribution, type GhUser } from "../github";
+import { contributionCalendar, getUser, userContributions, type Calendar, type Contribution, type GhUser } from "../github";
 
 export type RepoActivity = {
   repo: string;
@@ -18,15 +19,25 @@ export async function getProfileData(login: string) {
   let user: GhUser | null = null;
   let contributions: Contribution[] = [];
   let githubError: string | null = null;
-  try {
-    user = await getUser(login);
-  } catch (err) {
-    githubError = (err as Error).message;
-  }
-  try {
-    contributions = await userContributions(login);
-  } catch (err) {
-    githubError = (err as Error).message;
+  let calendar: Calendar | null = null;
+  // GitHub answers 422 to a search for a malformed login; such a handle can only match local vouch data.
+  const valid = isGithubLogin(login);
+  if (valid) {
+    try {
+      user = await getUser(login);
+    } catch (err) {
+      githubError = (err as Error).message;
+    }
+    try {
+      contributions = await userContributions(login);
+    } catch (err) {
+      githubError = (err as Error).message;
+    }
+    try {
+      calendar = await contributionCalendar(login);
+    } catch {
+      /* the profile just skips the calendar */
+    }
   }
   const edges = trustRepo.edgesForUser(login);
   const byRepo = new Map<string, RepoActivity>();
@@ -49,7 +60,21 @@ export async function getProfileData(login: string) {
   const activity = [...byRepo.values()].sort(
     (a, b) => b.merged + b.closed + b.open + b.reviews + b.issues - (a.merged + a.closed + a.open + a.reviews + a.issues),
   );
-  return { login: user?.login ?? login, user, edges, activity, githubError };
+  // Years the account has existed, newest first, for the calendar's year switch.
+  const thisYear = new Date().getUTCFullYear();
+  const firstYear = user?.created_at ? new Date(user.created_at).getUTCFullYear() : thisYear;
+  const years = Array.from({ length: thisYear - firstYear + 1 }, (_, i) => thisYear - i);
+  return { login: user?.login ?? login, user, edges, activity, calendar, years, githubError };
+}
+
+/** One year of the contribution calendar, or the last year when `year` is null. */
+export async function getContributionCalendar(login: string, year: number | null) {
+  if (!isGithubLogin(login)) return null;
+  try {
+    return await contributionCalendar(login, year ?? undefined);
+  } catch {
+    return null;
+  }
 }
 
 export async function listRequestProjects() {

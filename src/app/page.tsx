@@ -1,56 +1,80 @@
 import Link from "next/link";
-import { Badge } from "@/components/arc/badge/badge";
 import { Button } from "@/components/arc/button/button";
 import { EmptyState } from "@/components/arc/empty-state/empty-state";
-import { Input } from "@/components/arc/input/input";
 import SampleChip from "@/components/SampleChip";
+import { SearchBar } from "@/components/SearchBar";
 import TrustGraph from "@/components/TrustGraph";
+import { TrustTable } from "@/components/TrustTable";
 import { exploreSearch, indexStats } from "@/server/actions/explore";
+import { cleanQuery } from "@/lib/query";
 
 export const dynamic = "force-dynamic";
 
 const fmtDate = (iso: string | null) => (iso ? new Date(iso).toISOString().slice(0, 10) : "");
 const VERB = { vouch: "vouched", denounce: "denounced", remove: "removed" } as Record<string, string>;
 const fmt = (n: number) => n.toLocaleString("en-US");
+const plural = (n: number, one: string, other: string) => `${fmt(n)} ${n === 1 ? one : other}`;
 
 export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const stats = await indexStats();
   const { q: rawQ } = await searchParams;
-  const q = (rawQ ?? process.env.NEXT_PUBLIC_DEMO_USER ?? "Calonca").trim().replace(/^@/, "");
+  const q = cleanQuery(rawQ ?? "");
   const result = q ? await exploreSearch(q) : null;
   const anySeed = !!result?.edges.some((e) => e.is_seed);
   const title = result ? (result.kind === "user" ? `@${result.q}` : result.q) : "";
+  const vouched = result?.edges.filter((e) => e.status === "vouched").length ?? 0;
+  const denounced = (result?.edges.length ?? 0) - vouched;
+  const indexEmpty = stats.projects === 0;
 
   return (
-    <div className="container">
-      <section className="hero">
-        <h1>Who is trusted where?</h1>
-        <p>
-          A map of public <span className="mono">VOUCHED.td</span> files across GitHub — the web of trust Vouch hopes for, made
-          visible.
-        </p>
-        <form className="search-form" action="/" method="get" role="search">
-          <Input
-            id="q"
-            name="q"
-            label="GitHub handle or project"
-            defaultValue={q ? (result?.kind === "user" ? `@${q}` : q) : ""}
-            placeholder="@handle or owner/repo"
-            autoComplete="off"
-          />
-          <Button type="submit">Map trust</Button>
-          <Button type="submit" variant="secondary" formAction="/profile">
-            Show profile
-          </Button>
-        </form>
-        {stats.suggestions.length > 0 && (
-          <div className="row small muted">
-            <span>Try:</span>
-            {stats.suggestions.slice(0, 6).map((s) => (
-              <Link key={s} className="mono" href={`/?q=${encodeURIComponent(s)}`}>@{s}</Link>
-            ))}
-            <Link className="mono" href="/?q=Calonca/hf26">Calonca/hf26</Link>
+    <div className="container explore">
+      <section className="explore-hero" aria-labelledby="explore-title">
+        <div className="explore-intro">
+          <h1 id="explore-title">Who is trusted where?</h1>
+          <p>
+            A map of public <span className="mono">VOUCHED.td</span> files across GitHub. Search a contributor to see which
+            projects vouch for them, or a project to see who it trusts.
+          </p>
+        </div>
+
+        <SearchBar defaultValue={q ? (result?.kind === "user" ? `@${q}` : q) : ""} />
+
+        {(stats.suggestions.length > 0 || stats.projectSuggestions.length > 0) && (
+          <div className="suggest">
+            {stats.projectSuggestions.length > 0 && (
+              <div className="suggest-row">
+                <span className="suggest-label">Projects</span>
+                {stats.projectSuggestions.map((p) => (
+                  <Link key={p} className="pill mono" href={`/?q=${encodeURIComponent(p)}`} aria-current={result?.q === p ? "true" : undefined}>
+                    {p}
+                  </Link>
+                ))}
+              </div>
+            )}
+            {stats.suggestions.length > 0 && (
+              <div className="suggest-row">
+                <span className="suggest-label">People</span>
+                {stats.suggestions.slice(0, 6).map((s) => (
+                  <Link key={s} className="pill mono" href={`/?q=${encodeURIComponent(s)}`} aria-current={result?.q === s ? "true" : undefined}>
+                    @{s}
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
+        )}
+
+        <dl className="stat-strip" aria-label="Index">
+          <div className="stat"><dt>Projects with VOUCHED.td</dt><dd>{fmt(stats.projects)}</dd></div>
+          <div className="stat"><dt>Vouched contributors</dt><dd>{fmt(stats.vouched)}</dd></div>
+          <div className="stat"><dt>Denounced</dt><dd className="tone-danger">{fmt(stats.denounced)}</dd></div>
+          <div className="stat"><dt>Vouch events</dt><dd>{fmt(stats.events)}</dd></div>
+        </dl>
+        {stats.shared && (
+          <p className="stat-note muted small">
+            Shared index: {fmt(stats.shared.projects)} projects · {fmt(stats.shared.vouched)} vouched ·{" "}
+            {fmt(stats.shared.denounced)} denounced
+          </p>
         )}
       </section>
 
@@ -60,99 +84,85 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
             <>
               <div className="card">
                 <div className="card-head">
-                  <h2>
-                    Trust graph · <span className={result.kind === "project" ? "mono" : undefined}>{title}</span>
-                    <span className="muted small" style={{ fontWeight: 400 }}>
-                      {" "}· {result.kind === "user" ? `listed in ${result.edges.length} project${result.edges.length === 1 ? "" : "s"}` : `${result.edges.length} listed users`}
+                  <div className="result-head">
+                    <h2>
+                      <span className={result.kind === "project" ? "mono" : undefined}>{title}</span>
+                    </h2>
+                    <span className="muted small">
+                      {result.kind === "user"
+                        ? `Listed in ${plural(result.edges.length, "project", "projects")}`
+                        : `${plural(result.edges.length, "listed user", "listed users")}`}
+                      {" · "}
+                      <span className="tone-success">{fmt(vouched)} vouched</span>
+                      {denounced > 0 && <> · <span className="tone-danger">{fmt(denounced)} denounced</span></>}
                     </span>
-                  </h2>
-                  <SampleChip show={anySeed} />
+                  </div>
+                  <div className="row">
+                    <SampleChip show={anySeed} />
+                    {result.kind === "user" ? (
+                      <Link className="link-btn" href={`/u/${encodeURIComponent(result.q)}`}>Open profile</Link>
+                    ) : (
+                      <a className="link-btn" href={`https://github.com/${result.q}`} target="_blank" rel="noreferrer">View on GitHub</a>
+                    )}
+                  </div>
                 </div>
                 <TrustGraph center={{ kind: result.kind, id: result.q }} edges={result.edges} />
               </div>
-              <div className="card table-wrap">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th scope="col">{result.kind === "user" ? "Project" : "User"}</th>
-                      <th scope="col">Status</th>
-                      <th scope="col">Vouched by</th>
-                      <th scope="col">Note</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {result.edges.map((e) => (
-                      <tr key={`${e.project}:${e.login}`}>
-                        <td>
-                          {result.kind === "user" ? (
-                            <Link className="mono" href={`/?q=${encodeURIComponent(e.project)}`}>{e.project}</Link>
-                          ) : (
-                            <Link className="mono" href={`/u/${encodeURIComponent(e.login)}`}>@{e.login}</Link>
-                          )}{" "}
-                          <SampleChip show={e.is_seed} />
-                          {e.origin === "shared" && <span className="chip">Shared index</span>}
-                        </td>
-                        <td>
-                          <Badge tone={e.status === "vouched" ? "success" : "danger"} size="sm">{e.status === "vouched" ? "Vouched" : "Denounced"}</Badge>
-                        </td>
-                        <td>{e.voucher ? `@${e.voucher}` : <span className="muted">unknown</span>}</td>
-                        <td className="muted">{e.note ?? ""}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <TrustTable kind={result.kind} edges={result.edges} />
             </>
           ) : (
             <div className="card">
-              {q ? (
-                <EmptyState title="Not in any vouch list" description={`No VOUCHED.td entries found for ${q} in the index.`} />
+              {indexEmpty ? (
+                <EmptyState
+                  title="The index is empty"
+                  description="Run npm run crawl to find public VOUCHED.td files, or npm run crawl -- --repo owner/name for one project."
+                />
+              ) : !q ? (
+                <EmptyState
+                  title="Search a contributor or a project"
+                  description="Enter a GitHub handle to see which projects vouch for them, or owner/repo to see who a project trusts. Or pick one of the suggestions above."
+                />
+              ) : result?.kind === "user" ? (
+                <EmptyState
+                  title={`@${q} isn't in any vouch list`}
+                  description="No indexed VOUCHED.td lists this handle. Their public GitHub activity is still on their profile."
+                  action={<Link className="link-btn" href={`/u/${encodeURIComponent(q)}`}>Open @{q}&apos;s profile</Link>}
+                />
               ) : (
-                <EmptyState title="The index is empty" description="Run npm run db:seed and npm run crawl to fill it." />
+                <EmptyState
+                  title={`${q} isn't indexed`}
+                  description="Either the project has no VOUCHED.td or the crawler hasn't reached it yet. Try one of the projects above."
+                />
               )}
             </div>
           )}
         </section>
 
-        <aside className="stack" aria-label="Recent vouches and index">
+        <aside className="stack" aria-label="Recent vouches">
           <section className="card">
             <h2 className="card-title">Recent vouches</h2>
             {stats.recent.length === 0 ? (
               <p className="muted small">No events yet.</p>
             ) : (
-              <ul className="event-list">
+              <ol className="event-list">
                 {stats.recent.map((ev) => (
                   <li key={ev.id}>
-                    <span>
-                      <Link href={`/u/${encodeURIComponent(ev.login)}`}><strong>@{ev.login}</strong></Link>{" "}
-                      {VERB[ev.action] ?? ev.action} in{" "}
-                      <Link className="mono small" href={`/?q=${encodeURIComponent(ev.project)}`}>{ev.project}</Link>{" "}
-                      <SampleChip show={ev.is_seed} />
-                    </span>
-                    <span className="meta">
-                      {ev.voucher ? `by @${ev.voucher} · from VOUCHED.td diff` : "voucher unknown"} · {fmtDate(ev.occurred_at)}
-                    </span>
+                    <span className={`event-dot is-${ev.action}`} aria-hidden="true" />
+                    <div>
+                      <span>
+                        <Link href={`/u/${encodeURIComponent(ev.login)}`}><strong>@{ev.login}</strong></Link>{" "}
+                        {VERB[ev.action] ?? ev.action} in{" "}
+                        <Link className="mono" href={`/?q=${encodeURIComponent(ev.project)}`}>{ev.project}</Link>{" "}
+                        <SampleChip show={ev.is_seed} />
+                      </span>
+                      <span className="meta">
+                        {ev.voucher ? <>by <Link href={`/u/${encodeURIComponent(ev.voucher)}`}>@{ev.voucher}</Link> · </> : null}
+                        <time dateTime={ev.occurred_at ?? undefined}>{fmtDate(ev.occurred_at)}</time>
+                      </span>
+                    </div>
                   </li>
                 ))}
-              </ul>
-            )}
-            {result?.kind === "user" && (
-              <Link className="strong-link" href={`/u/${encodeURIComponent(result.q)}`}>Open @{result.q}&apos;s profile →</Link>
-            )}
-          </section>
-          <section className="card">
-            <h2 className="card-title">Index</h2>
-            <div className="stat-grid">
-              <div className="stat"><b>{fmt(stats.projects)}</b><span>projects with VOUCHED.td</span></div>
-              <div className="stat"><b>{fmt(stats.vouched)}</b><span>vouched contributors</span></div>
-              <div className="stat"><b>{fmt(stats.denounced)}</b><span>denounced</span></div>
-              <div className="stat"><b>{fmt(stats.events)}</b><span>vouch events</span></div>
-            </div>
-            {stats.shared && (
-              <p className="muted small">
-                Shared index: {fmt(stats.shared.projects)} projects · {fmt(stats.shared.vouched)} vouched ·{" "}
-                {fmt(stats.shared.denounced)} denounced
-              </p>
+              </ol>
             )}
           </section>
         </aside>

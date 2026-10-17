@@ -5,6 +5,7 @@ import { Octokit } from "@octokit/rest";
 import { execSync } from "node:child_process";
 
 let client: Octokit | undefined;
+let authed = false;
 export function octokit(): Octokit {
   if (client) return client;
   let auth = process.env.GITHUB_TOKEN;
@@ -15,8 +16,15 @@ export function octokit(): Octokit {
       /* unauthenticated: low rate limits */
     }
   }
+  authed = Boolean(auth);
   client = new Octokit({ auth, userAgent: "vouch-explorer" });
   return client;
+}
+
+/** GraphQL rejects unauthenticated calls with 403, which withRetry would mistake for a rate limit. */
+export function hasToken(): boolean {
+  octokit();
+  return authed;
 }
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

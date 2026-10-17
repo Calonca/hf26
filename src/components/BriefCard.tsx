@@ -8,12 +8,6 @@ import { Skeleton } from "@/components/arc/skeleton/skeleton";
 import type { AiResult, Brief } from "@/server/ai/tasks";
 import { EvidenceList } from "./EvidenceList";
 
-/** "gemma4:e4b" → "Gemma 4" */
-function modelName(model: string) {
-  const m = model.match(/^gemma(\d+)/i);
-  return m ? `Gemma ${m[1]}` : model;
-}
-
 /** Aborting `signal` (e.g. leaving the profile) stops generation on the server. */
 async function fetchBrief(login: string, force: boolean, signal?: AbortSignal): Promise<AiResult<Brief>> {
   const res = await fetch(`/api/ai/brief?login=${encodeURIComponent(login)}${force ? "&force=1" : ""}`, { signal });
@@ -43,9 +37,6 @@ export function BriefCard({ login }: { login: string }) {
       <div className="brief-head">
         <h2 id="brief-title">Contribution brief</h2>
         <div className="brief-actions">
-          <Badge tone="info" size="sm">
-            written by {res && res.ok ? modelName(res.model) : "Gemma 4"} · runs locally
-          </Badge>
           <Button variant="ghost" size="sm" onClick={() => regen.mutate()} disabled={loading} loading={regen.isPending}>
             Regenerate
           </Button>

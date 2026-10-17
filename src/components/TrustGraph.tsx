@@ -217,7 +217,10 @@ export default function TrustGraph({ center, edges }: Props) {
   return (
     <div ref={wrapRef} className={`graph-wrap${fullscreen ? " is-fullscreen" : ""}`}>
       <div className="graph-tools">
-        <span className="muted small">{nodeCount - 1} {center.kind === "user" ? "projects" : "users"}</span>
+        {/* The card header carries the count; fullscreen hides it, so the toolbar repeats it there. */}
+        <span className="muted small">
+          {fullscreen && `${nodeCount - 1} ${center.kind === "user" ? (nodeCount === 2 ? "project" : "projects") : nodeCount === 2 ? "user" : "users"}`}
+        </span>
         <Button variant="ghost" size="sm" onClick={fit}>
           Fit
         </Button>
