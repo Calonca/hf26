@@ -29,6 +29,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
           <label htmlFor="q" className="sr-only">GitHub handle or project</label>
           <input id="q" name="q" defaultValue={q ? (result?.kind === "user" ? `@${q}` : q) : ""} placeholder="Search a GitHub handle or owner/repo" autoComplete="off" />
           <button className="btn btn-primary" type="submit">Map trust</button>
+          <button className="btn btn-outline" type="submit" formAction="/profile">Show profile</button>
         </form>
         {stats.suggestions.length > 0 && (
           <div className="row small muted">

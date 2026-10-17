@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import NavLinks from "./NavLinks";
 
@@ -21,7 +22,9 @@ export default function Header() {
           </svg>
           <span>Vouch Explorer</span>
         </Link>
-        <NavLinks />
+        <Suspense fallback={null}>
+          <NavLinks />
+        </Suspense>
         <span className="model-badge" title="Open-weight model, runs locally">{modelLabel()}</span>
       </div>
     </header>

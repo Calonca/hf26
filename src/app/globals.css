@@ -70,6 +70,8 @@ h1, h2, h3 { line-height: 1.25; margin: 0 0 .5rem; }
 .btn-primary:hover { background: #0b5a54; color: #fff; }
 .btn-warn { background: var(--surface); border-color: #E8B98F; color: #9A4508; }
 .btn-warn:hover { background: var(--warn-soft); color: #7a3606; }
+.btn-outline { background: var(--surface); border-color: #C3CAD4; color: var(--ink); }
+.btn-outline:hover { border-color: var(--accent); color: var(--accent); }
 .btn-ghost { background: transparent; border-color: transparent; color: var(--accent); }
 .btn-ghost:hover { background: var(--accent-soft); color: #0b5a54; }
 
