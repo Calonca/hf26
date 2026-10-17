@@ -24,6 +24,7 @@ export default function TrustGraph({ center, edges }: Props) {
   const router = useRouter();
   const nodeCount = 1 + new Set(edges.map((e) => (center.kind === "user" ? e.project : e.login))).size;
   const t = tier(nodeCount);
+  const denouncedCount = edges.filter((e) => e.status === "denounced").length;
 
   const fit = () => {
     const cy = cyRef.current;
@@ -58,12 +59,12 @@ export default function TrustGraph({ center, edges }: Props) {
       const cytoscape = (await import("cytoscape")).default;
       if (cancelled || !ref.current) return;
       const centerId = `${center.kind}:${center.id}`;
-      const nodes = new Map<string, { id: string; label: string; kind: string; seed: number }>();
-      nodes.set(centerId, { id: centerId, label: center.kind === "user" ? `@${center.id}` : center.id, kind: center.kind, seed: 0 });
+      const nodes = new Map<string, { id: string; label: string; kind: string; seed: number; status: string }>();
+      nodes.set(centerId, { id: centerId, label: center.kind === "user" ? `@${center.id}` : center.id, kind: center.kind, seed: 0, status: "center" });
       const els: import("cytoscape").ElementDefinition[] = [];
       edges.forEach((e, i) => {
         const other = center.kind === "user" ? { id: `project:${e.project}`, label: e.project, kind: "project" } : { id: `user:${e.login}`, label: e.login, kind: "user" };
-        if (!nodes.has(other.id)) nodes.set(other.id, { ...other, seed: e.is_seed });
+        if (!nodes.has(other.id)) nodes.set(other.id, { ...other, seed: e.is_seed, status: e.status });
         const [source, target] = center.kind === "user" ? [other.id, centerId] : [centerId, other.id];
         els.push({
           data: {
@@ -74,16 +75,21 @@ export default function TrustGraph({ center, edges }: Props) {
             // Denounced stays orange even with an unknown voucher (dashed); unknown vouches are dashed grey.
             color: e.status === "denounced" ? ORANGE : e.voucher ? TEAL : GREY,
             style: e.voucher ? "solid" : "dashed",
+            status: e.status,
             statusColor: e.status === "vouched" ? TEAL : ORANGE,
           },
         });
       });
       // Large graphs: spread leaves over several concentric rings instead of one giant circle.
+      // Denounced nodes go on their own inner ring so they are never lost in a big graph.
       let leaf = 0;
-      const rings = Math.max(1, Math.ceil((nodes.size - 1) / t.ring));
+      const vouchedCount = [...nodes.values()].filter((n) => n.status === "vouched").length;
+      const rings = Math.max(1, Math.ceil(vouchedCount / t.ring));
+      const hasDenounced = [...nodes.values()].some((n) => n.status === "denounced");
       for (const n of nodes.values()) {
         const isCenter = n.id === centerId;
-        els.unshift({ data: { ...n, isCenter: isCenter ? 1 : 0, level: isCenter ? rings + 1 : rings - (leaf++ % rings) } });
+        const level = isCenter ? rings + 2 : n.status === "denounced" ? rings + 1 : rings - (leaf++ % rings);
+        els.unshift({ data: { ...n, isCenter: isCenter ? 1 : 0, level: hasDenounced || isCenter ? level : Math.min(level, rings) } });
       }
 
       cy = cytoscape({
@@ -117,6 +123,10 @@ export default function TrustGraph({ center, edges }: Props) {
           },
           { selector: 'node[kind = "user"]', style: { "background-color": "#FFFFFF", color: "#0E1726", "border-color": "#8A94A3" } },
           {
+            selector: 'node[status = "denounced"]',
+            style: { "background-color": "#FBEBDD", color: "#7C2D12", "border-color": ORANGE, "border-width": 2, "font-weight": 600, "z-index": 10 },
+          },
+          {
             selector: "node[isCenter = 1]",
             style: {
               shape: "round-rectangle",
@@ -147,6 +157,7 @@ export default function TrustGraph({ center, edges }: Props) {
               "text-background-padding": "3px",
             },
           },
+          { selector: 'edge[status = "denounced"]', style: { opacity: 1, width: Math.max(2, t.edge), "z-index": 10 } },
         ],
       });
       cyRef.current = cy;
@@ -184,7 +195,7 @@ export default function TrustGraph({ center, edges }: Props) {
       <div className="legend" aria-hidden="true">
         <span><i style={{ borderColor: TEAL }} />Vouched</span>
         <span><i style={{ borderColor: GREY, borderTopStyle: "dashed" }} />Unknown voucher</span>
-        <span><i style={{ borderColor: ORANGE }} />Denounced</span>
+        <span><i style={{ borderColor: ORANGE }} />Denounced{denouncedCount ? ` (${denouncedCount}, inner ring)` : ""}</span>
         <span>Click a node to explore it</span>
       </div>
     </div>

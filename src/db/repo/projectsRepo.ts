@@ -1,7 +1,7 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { db, now, schema } from "../client";
 
-const { projects, issues } = schema;
+const { projects, issues, vouch_entries, vouch_events, vouch_requests } = schema;
 export type Project = typeof projects.$inferSelect;
 export type ProjectInput = Omit<typeof projects.$inferInsert, "id" | "owner" | "repo"> & { full_name: string };
 
@@ -43,5 +43,23 @@ export const projectsRepo = {
   },
   hasIssues(projectId: number) {
     return !!db.select({ id: issues.id }).from(issues).where(and(eq(issues.project_id, projectId))).limit(1).get();
+  },
+  /** Delete crawled projects whose vouch file is not at one of `paths`, with their entries/events/issues. */
+  pruneNonCanonical(paths: string[]): string[] {
+    const bad = db
+      .select({ id: projects.id, full_name: projects.full_name })
+      .from(projects)
+      .where(and(eq(projects.is_seed, 0), notInArray(projects.vouch_file_path, paths)))
+      .all();
+    if (bad.length === 0) return [];
+    const ids = bad.map((b) => b.id);
+    db.transaction((tx) => {
+      tx.delete(vouch_events).where(inArray(vouch_events.project_id, ids)).run();
+      tx.delete(vouch_entries).where(inArray(vouch_entries.project_id, ids)).run();
+      tx.delete(issues).where(inArray(issues.project_id, ids)).run();
+      tx.delete(vouch_requests).where(inArray(vouch_requests.project_id, ids)).run();
+      tx.delete(projects).where(inArray(projects.id, ids)).run();
+    });
+    return bad.map((b) => b.full_name);
   },
 };
